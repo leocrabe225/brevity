@@ -1,0 +1,116 @@
+use super::{Score, Solid, ball::Ball, progress::Progress};
+use crate::collision::{Collider, Collision, Shape};
+use crate::colors::BreakoutColors;
+use bevy::prelude::*;
+
+const BRICK_ROW_COLORS: [BrickColor; 8] = [
+    BrickColor::Red,
+    BrickColor::Red,
+    BrickColor::Orange,
+    BrickColor::Orange,
+    BrickColor::Green,
+    BrickColor::Green,
+    BrickColor::Yellow,
+    BrickColor::Yellow,
+];
+const BRICK_SIZE: Vec2 = Vec2::new(50., 10.);
+const BRICK_PADDING: Vec2 = Vec2::splat(2.);
+const BRICK_ROWS: u32 = 8;
+
+#[derive(Clone, Copy, PartialEq)]
+enum BrickColor {
+    Yellow,
+    Green,
+    Orange,
+    Red,
+}
+
+#[derive(Component)]
+#[require(Solid)]
+pub(super) struct Brick {
+    color: BrickColor,
+}
+
+impl BrickColor {
+    const fn color(self) -> Color {
+        match self {
+            BrickColor::Yellow => Color::BRICK_YELLOW,
+            BrickColor::Green => Color::BRICK_GREEN,
+            BrickColor::Orange => Color::BRICK_ORANGE,
+            BrickColor::Red => Color::BRICK_RED,
+        }
+    }
+
+    const fn points(self) -> usize {
+        match self {
+            BrickColor::Yellow => 1,
+            BrickColor::Green => 3,
+            BrickColor::Orange => 5,
+            BrickColor::Red => 7,
+        }
+    }
+}
+
+pub(super) fn spawn(commands: &mut Commands, window: &Window) {
+    let window_size = window.resolution.physical_size();
+    let top = (window_size.y as f32) / 2.;
+    let left = -(window_size.x as f32) / 2.;
+    let brick_columns_count =
+        ((window_size.x as f32 - BRICK_PADDING.x) / (BRICK_SIZE.x + BRICK_PADDING.x)) as u32;
+    let brick_row_width =
+        brick_columns_count as f32 * (BRICK_SIZE.x + BRICK_PADDING.x) - BRICK_PADDING.x;
+    let row_start = (window_size.x as f32 - brick_row_width) / 2.;
+
+    for row in 0..BRICK_ROWS {
+        let y = top
+            - (BRICK_PADDING.y + row as f32 * (BRICK_SIZE.y + BRICK_PADDING.y))
+            - BRICK_SIZE.y / 2.;
+        let brick_color = BRICK_ROW_COLORS[row as usize];
+        for column in 0..brick_columns_count {
+            let x = left
+                + (row_start + column as f32 * (BRICK_PADDING.x + BRICK_SIZE.x))
+                + BRICK_SIZE.x / 2.;
+            commands.spawn((
+                Sprite::from_color(brick_color.color(), Vec2::ONE),
+                Transform {
+                    translation: Vec3::new(x, y, 0.),
+                    scale: BRICK_SIZE.extend(1.),
+                    ..default()
+                },
+                Brick { color: brick_color },
+                Solid,
+                Collider {
+                    shape: Shape::Rectangle(Rectangle::new(BRICK_SIZE.x, BRICK_SIZE.y)),
+                },
+            ));
+        }
+    }
+}
+
+pub(super) fn hit_by_ball(
+    mut commands: Commands,
+    mut collisions: MessageReader<Collision>,
+    bricks: Query<&Brick>,
+    balls: Query<(), With<Ball>>,
+    mut score: ResMut<Score>,
+    mut progress: ResMut<Progress>,
+) {
+    for collision in collisions.read() {
+        let (me, other) = (&collision.collisioner, &collision.collisionee);
+        if !bricks.contains(me.entity) || !balls.contains(other.entity) {
+            continue;
+        };
+        let Ok(brick) = bricks.get(collision.collisioner.entity) else {
+            continue;
+        };
+        **score += brick.color.points();
+        progress.bricks_hit += 1;
+        if brick.color == BrickColor::Orange {
+            progress.orange_reached = true;
+        };
+        if brick.color == BrickColor::Red {
+            progress.red_reached = true;
+        };
+        commands.entity(collision.collisioner.entity).despawn()
+    }
+}
