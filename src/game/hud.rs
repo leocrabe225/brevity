@@ -19,7 +19,7 @@ pub(super) fn spawn_scoreboard(commands: &mut Commands) {
         },
         TextColor(Color::WHITE),
         Transform {
-            translation: Vec3::new(0., 0., 0.),
+            translation: Vec3::new(0., 0., -1.),
             ..default()
         },
         ScoreboardText,
