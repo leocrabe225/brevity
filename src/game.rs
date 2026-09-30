@@ -14,20 +14,40 @@ use ball::BallLost;
 use bevy::prelude::*;
 use progress::Progress;
 
+#[derive(SubStates, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[source(GameState = GameState::Game)]
+enum GamePhase {
+    #[default]
+    Intro,
+    Playing,
+}
+
 pub(super) fn plugin(app: &mut App) {
-    app.add_message::<Collision>()
+    app.add_sub_state::<GamePhase>()
+        .add_message::<Collision>()
         .add_message::<BallLost>()
-        .add_systems(OnEnter(GameState::Game), (setup_resources, setup).chain())
+        .add_systems(OnEnter(GameState::Game), setup_resources)
         .add_systems(
             Update,
-            (ball::serve, hud::fade_out, hud::speed_update_text).run_if(in_state(GameState::Game)),
+            (run_intro, ball::serving_ball_follow_paddle)
+                .chain()
+                .run_if(in_state(GamePhase::Intro)),
+        )
+        .add_systems(
+            Update,
+            (
+                ball::serve,
+                ball::serving_ball_follow_paddle,
+                hud::fade_out,
+                hud::speed_update_text,
+            )
+                .run_if(in_state(GamePhase::Playing)),
         )
         .add_systems(
             FixedUpdate,
             (
                 paddle::movement,
                 apply_velocity,
-                ball::serving_ball_follow_paddle,
                 collision::check_for_collisions,
                 paddle::bounce,
                 ball::bounce,
@@ -39,37 +59,64 @@ pub(super) fn plugin(app: &mut App) {
                 hud::update_scoreboard,
             )
                 .chain()
-                .run_if(in_state(GameState::Game)),
+                .run_if(in_state(GamePhase::Playing)),
         );
 }
 
 fn setup_resources(mut commands: Commands) {
+    commands.insert_resource(IntroClock(0.));
     commands.insert_resource(Score(0));
     commands.insert_resource(Lives(START_LIVES));
     commands.insert_resource(Progress { ..default() });
 }
 
-fn setup(
+fn run_intro(
     mut commands: Commands,
+    time: Res<Time>,
+    mut clock: ResMut<IntroClock>,
+    window: Single<&Window>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     lives: Res<Lives>,
-    window: Single<&Window>,
+    mut next: ResMut<NextState<GamePhase>>,
 ) {
-    paddle::spawn(&mut commands);
-    ball::spawn_serving_ball(
-        &mut commands,
-        &mut meshes,
-        &mut materials,
-        BALL_LIVES_COLORS[lives.0 - 1],
-    );
-    brick::spawn(&mut commands, &window);
-    wall::spawn(&mut commands, &window);
-    hud::spawn_scoreboard(&mut commands);
+    let before = clock.0;
+
+    clock.0 += time.delta_secs();
+
+    if before <= WALLS_AT && clock.0 > WALLS_AT {
+        wall::spawn(&mut commands, &window);
+    }
+    if before <= BRICKS_AT && clock.0 > BRICKS_AT {
+        brick::spawn(&mut commands, &window);
+    }
+    if before <= PADDLE_BALL_AT && clock.0 > PADDLE_BALL_AT {
+        paddle::spawn(&mut commands);
+        ball::spawn_serving_ball(
+            &mut commands,
+            &mut meshes,
+            &mut materials,
+            BALL_LIVES_COLORS[lives.0 - 1],
+        );
+    }
+    if before <= SCORE_AT && clock.0 > SCORE_AT {
+        hud::spawn_scoreboard(&mut commands);
+    }
+    if clock.0 > INTRO_END {
+        next.set(GamePhase::Playing);
+    }
 }
 
+const WALLS_AT: f32 = 0.;
+const BRICKS_AT: f32 = 1.;
+const PADDLE_BALL_AT: f32 = 2.;
+const SCORE_AT: f32 = 3.;
+const INTRO_END: f32 = 3.;
 const BALL_LIVES_COLORS: [Color; 3] = [Color::BRICK_RED, Color::BRICK_ORANGE, Color::WHITE];
 const START_LIVES: usize = 3;
+
+#[derive(Resource)]
+struct IntroClock(f32);
 
 #[derive(Component, Default)]
 struct Solid;
