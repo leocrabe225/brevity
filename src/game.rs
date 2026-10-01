@@ -19,6 +19,7 @@ use progress::Progress;
 enum GamePhase {
     #[default]
     Intro,
+    AwaitingFirstInput,
     Playing,
 }
 
@@ -32,6 +33,12 @@ pub(super) fn plugin(app: &mut App) {
             (run_intro, ball::serving_ball_follow_paddle)
                 .chain()
                 .run_if(in_state(GamePhase::Intro)),
+        )
+        .add_systems(
+            Update,
+            (hud::bounce_size, start_game, ball::serve)
+                .chain()
+                .run_if(in_state(GamePhase::AwaitingFirstInput)),
         )
         .add_systems(
             Update,
@@ -102,8 +109,11 @@ fn run_intro(
     if before <= SCORE_AT && clock.0 > SCORE_AT {
         hud::spawn_scoreboard(&mut commands);
     }
+    if before <= SPACE_HINT_AT && clock.0 > SPACE_HINT_AT {
+        hud::spawn_space_hint(&mut commands);
+    }
     if clock.0 > INTRO_END {
-        next.set(GamePhase::Playing);
+        next.set(GamePhase::AwaitingFirstInput);
     }
 }
 
@@ -111,7 +121,8 @@ const WALLS_AT: f32 = 0.;
 const BRICKS_AT: f32 = 1.;
 const PADDLE_BALL_AT: f32 = 2.;
 const SCORE_AT: f32 = 3.;
-const INTRO_END: f32 = 3.;
+const SPACE_HINT_AT: f32 = 4.;
+const INTRO_END: f32 = 4.;
 const BALL_LIVES_COLORS: [Color; 3] = [Color::BRICK_RED, Color::BRICK_ORANGE, Color::WHITE];
 const START_LIVES: usize = 3;
 
@@ -129,6 +140,13 @@ struct Score(usize);
 
 #[derive(Resource, Deref, DerefMut, Copy, Clone)]
 struct Lives(usize);
+
+fn start_game(keyboard_input: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<GamePhase>>) {
+    if !keyboard_input.just_pressed(KeyCode::Space) {
+        return;
+    }
+    next.set(GamePhase::Playing);
+}
 
 fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, fixed_time: Res<Time<Fixed>>) {
     for (mut transform, velocity) in &mut query {

@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 const PADDLE_COLOR: Color = Color::WHITE;
 const PADDLE_SIZE: Vec2 = Vec2::new(100., 10.);
+const PADDLE_START_POS: Vec2 = Vec2::new(0., -250.);
 
 #[derive(Component)]
 #[require(Solid)]
@@ -13,7 +14,7 @@ pub(super) fn spawn(commands: &mut Commands) {
     commands.spawn((
         Sprite::from_color(PADDLE_COLOR, Vec2::ONE),
         Transform {
-            translation: Vec3::new(0.0, -250.0, 0.0),
+            translation: PADDLE_START_POS.extend(0.0),
             scale: PADDLE_SIZE.extend(1.0),
             ..default()
         },
