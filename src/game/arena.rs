@@ -21,11 +21,10 @@ pub(super) struct Backboard;
 pub(super) struct OutOfBounds;
 
 fn spawn(mut commands: Commands, window: Single<&Window>) {
-    let window_size = window.resolution.physical_size();
-    let top = (window_size.y as f32) / 2.;
-    let bottom = -(window_size.y as f32) / 2.;
-    let left = -(window_size.x as f32) / 2.;
-    let right = (window_size.x as f32) / 2.;
+    let top = window.size().y / 2.;
+    let bottom = -window.size().y / 2.;
+    let left = -window.size().x / 2.;
+    let right = window.size().x / 2.;
 
     commands.spawn((
         Transform {
@@ -36,7 +35,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         Static,
         Backboard,
         Collider {
-            shape: Shape::Rectangle(Rectangle::new(window_size.x as f32, 20.0)),
+            shape: Shape::Rectangle(Rectangle::new(window.size().x, 20.0)),
         },
     ));
     commands.spawn((
@@ -47,7 +46,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         Solid,
         Static,
         Collider {
-            shape: Shape::Rectangle(Rectangle::new(window_size.x as f32, 20.0)),
+            shape: Shape::Rectangle(Rectangle::new(window.size().x, 20.0)),
         },
     ));
     commands.spawn((
@@ -57,7 +56,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         },
         OutOfBounds,
         Collider {
-            shape: Shape::Rectangle(Rectangle::new(window_size.x as f32, 90.0)),
+            shape: Shape::Rectangle(Rectangle::new(window.size().x, 90.0)),
         },
     ));
     commands.spawn((
@@ -68,7 +67,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         Solid,
         Static,
         Collider {
-            shape: Shape::Rectangle(Rectangle::new(20., window_size.x as f32)),
+            shape: Shape::Rectangle(Rectangle::new(20., window.size().x)),
         },
     ));
     commands.spawn((
@@ -79,7 +78,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         Solid,
         Static,
         Collider {
-            shape: Shape::Rectangle(Rectangle::new(20., window_size.x as f32)),
+            shape: Shape::Rectangle(Rectangle::new(20., window.size().x)),
         },
     ));
 }

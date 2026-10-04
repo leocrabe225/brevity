@@ -63,14 +63,13 @@ impl BrickColor {
 }
 
 fn spawn(mut commands: Commands, window: Single<&Window>) {
-    let window_size = window.resolution.physical_size();
-    let top = (window_size.y as f32) / 2.;
-    let left = -(window_size.x as f32) / 2.;
+    let top = window.size().y / 2.;
+    let left = -window.size().x / 2.;
     let brick_columns_count =
-        ((window_size.x as f32 - BRICK_PADDING.x) / (BRICK_SIZE.x + BRICK_PADDING.x)) as u32;
+        ((window.size().x - BRICK_PADDING.x) / (BRICK_SIZE.x + BRICK_PADDING.x)) as u32;
     let brick_row_width =
         brick_columns_count as f32 * (BRICK_SIZE.x + BRICK_PADDING.x) - BRICK_PADDING.x;
-    let row_start = (window_size.x as f32 - brick_row_width) / 2.;
+    let row_start = (window.size().x - brick_row_width) / 2.;
 
     for row in 0..BRICK_ROWS {
         let y = top
@@ -110,7 +109,7 @@ fn hit_by_ball(
         let (me, other) = (&collision.collisioner, &collision.collisionee);
         if !bricks.contains(me.entity) || !balls.contains(other.entity) {
             continue;
-        };
+        }
         let Ok(brick) = bricks.get(collision.collisioner.entity) else {
             continue;
         };
@@ -118,10 +117,10 @@ fn hit_by_ball(
         progress.bricks_hit += 1;
         if brick.color == BrickColor::Orange {
             progress.orange_reached = true;
-        };
+        }
         if brick.color == BrickColor::Red {
             progress.red_reached = true;
-        };
-        commands.entity(collision.collisioner.entity).despawn()
+        }
+        commands.entity(collision.collisioner.entity).despawn();
     }
 }

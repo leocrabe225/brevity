@@ -223,7 +223,7 @@ fn speed_update_text(
     let multiplier = progress.speed_multiplier();
     if last.is_some_and(|last| multiplier > last) {
         commands.spawn((
-            Text2d::new(format!("x{:.2}", multiplier)),
+            Text2d::new(format!("x{multiplier:.2}")),
             FadeOut(Timer::from_seconds(1.5, TimerMode::Once)),
             TextFont {
                 font_size: SPEED_FONT_SIZE,

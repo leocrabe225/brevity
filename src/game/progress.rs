@@ -23,7 +23,7 @@ impl Progress {
                     self.red_reached,
                 ]
                 .into_iter()
-                .filter(|&reached| reached)
-                .count() as f32
+                .map(f32::from)
+                .sum::<f32>()
     }
 }

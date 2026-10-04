@@ -143,7 +143,7 @@ fn snap_follower(
     let Ok(follow_entity) = followers.get(insert.entity) else {
         return;
     };
-    let Ok(followee) = transforms
+    let Ok(target) = transforms
         .get(follow_entity.entity)
         .map(|transform| transform.translation)
     else {
@@ -152,12 +152,12 @@ fn snap_follower(
     let Ok(mut follower) = transforms.get_mut(insert.entity) else {
         return;
     };
-    apply_follow(&mut follower, follow_entity.offset, &followee.xy())
+    apply_follow(&mut follower, follow_entity.offset, target.xy());
 }
 
 fn follow(followers: Query<(Entity, &FollowEntity)>, mut transforms: Query<&mut Transform>) {
     for (entity, follow_entity) in followers {
-        let Ok(followee) = transforms
+        let Ok(target) = transforms
             .get(follow_entity.entity)
             .map(|transform| transform.translation)
         else {
@@ -166,12 +166,12 @@ fn follow(followers: Query<(Entity, &FollowEntity)>, mut transforms: Query<&mut 
         let Ok(mut follower) = transforms.get_mut(entity) else {
             continue;
         };
-        apply_follow(&mut follower, follow_entity.offset, &followee.xy())
+        apply_follow(&mut follower, follow_entity.offset, target.xy());
     }
 }
 
-fn apply_follow(follower: &mut Transform, offset: Vec2, followee: &Vec2) {
-    follower.translation = (followee + offset).extend(follower.translation.z);
+fn apply_follow(follower: &mut Transform, offset: Vec2, target: Vec2) {
+    follower.translation = (target + offset).extend(follower.translation.z);
 }
 
 fn handle_ball_lost(
@@ -186,7 +186,7 @@ fn handle_ball_lost(
         **lives -= 1;
 
         if **lives == 0 {
-            panic!(); // End game
+            todo!(); // End game
         }
 
         ball::spawn_serving_ball(

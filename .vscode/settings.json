@@ -3,5 +3,6 @@
         "editor.defaultFormatter": "rust-lang.rust-analyzer",
         "editor.formatOnSave": true,
     },
-    "rust-analyzer.completion.callable.snippets": "none"
+    "rust-analyzer.completion.callable.snippets": "none",
+    "rust-analyzer.check.command": "clippy",
 }

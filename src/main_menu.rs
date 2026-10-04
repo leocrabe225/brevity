@@ -94,10 +94,8 @@ fn start_game(
     keys: Res<ButtonInput<KeyCode>>,
     mut last: Local<Option<bool>>,
 ) {
-    if !last.is_some() {
-        if keys.just_pressed(KeyCode::Enter) {
-            commands.spawn(GameStarting(Timer::from_seconds(2., TimerMode::Once)));
-            *last = Some(true);
-        }
+    if !last.is_some() && keys.just_pressed(KeyCode::Enter) {
+        commands.spawn(GameStarting(Timer::from_seconds(2., TimerMode::Once)));
+        *last = Some(true);
     }
 }

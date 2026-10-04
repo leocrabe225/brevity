@@ -96,16 +96,16 @@ fn check_for_collisions(
 fn collide(pos1: Vec2, pos2: Vec2, collider1: &Collider, collider2: &Collider) -> Option<Contact> {
     match (&collider1.shape, &collider2.shape) {
         (Shape::Circle(circle1), Shape::Circle(circle2)) => {
-            circle_circle_collide(pos1, pos2, circle1, circle2)
+            circle_circle_collide(pos1, pos2, *circle1, *circle2)
         }
         (Shape::Circle(circle), Shape::Rectangle(rectangle)) => {
-            circle_rectangle_collide(pos1, pos2, circle, rectangle)
+            circle_rectangle_collide(pos1, pos2, *circle, *rectangle)
         }
         (Shape::Rectangle(_), Shape::Circle(_)) => {
             collide(pos2, pos1, collider2, collider1).map(Contact::flipped)
         }
         (Shape::Rectangle(rectangle1), Shape::Rectangle(rectangle2)) => {
-            rectangle_rectangle_collide(pos1, pos2, rectangle1, rectangle2)
+            rectangle_rectangle_collide(pos1, pos2, *rectangle1, *rectangle2)
         }
     }
 }
@@ -113,8 +113,8 @@ fn collide(pos1: Vec2, pos2: Vec2, collider1: &Collider, collider2: &Collider) -
 fn circle_rectangle_collide(
     pos1: Vec2,
     pos2: Vec2,
-    circle: &Circle,
-    rectangle: &Rectangle,
+    circle: Circle,
+    rectangle: Rectangle,
 ) -> Option<Contact> {
     let bounding_rectangle = Aabb2d::new(pos2, rectangle.half_size);
     let closest_point = bounding_rectangle.closest_point(pos1);
@@ -149,8 +149,8 @@ fn circle_rectangle_collide(
 fn rectangle_rectangle_collide(
     pos1: Vec2,
     pos2: Vec2,
-    rectangle1: &Rectangle,
-    rectangle2: &Rectangle,
+    rectangle1: Rectangle,
+    rectangle2: Rectangle,
 ) -> Option<Contact> {
     let delta = pos1 - pos2;
     let overlap = (rectangle1.half_size + rectangle2.half_size) - delta.abs();
@@ -175,8 +175,8 @@ fn rectangle_rectangle_collide(
 fn circle_circle_collide(
     pos1: Vec2,
     pos2: Vec2,
-    circle1: &Circle,
-    circle2: &Circle,
+    circle1: Circle,
+    circle2: Circle,
 ) -> Option<Contact> {
     if pos1.distance(pos2) > circle1.radius + circle2.radius {
         return None;

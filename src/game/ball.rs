@@ -53,7 +53,7 @@ fn serve_on_new_paddle(
         &mut meshes,
         &mut materials,
         BALL_LIVES_COLORS[START_LIVES - 1],
-    )
+    );
 }
 
 pub(super) fn spawn_serving_ball(
@@ -149,7 +149,7 @@ fn out_of_bounds(
         let (me, other) = (&collision.collisioner, &collision.collisionee);
         if !balls.contains(me.entity) || !killzone.contains(other.entity) {
             continue;
-        };
+        }
 
         commands.entity(me.entity).despawn();
         ball_lost.write(BallLost);
@@ -166,7 +166,7 @@ fn hit_by_backboard(
         let (me, other) = (&collision.collisioner, &collision.collisionee);
         if !balls.contains(me.entity) || !backboard.contains(other.entity) {
             continue;
-        };
+        }
 
         progress.backboard_touched += 1;
     }
