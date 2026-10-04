@@ -1,16 +1,35 @@
-use super::{Solid, Velocity, wall::Wall};
-use crate::collision::{Collider, Collision, Shape};
+use super::{Solid, Static, Velocity};
+use crate::{
+    GameState,
+    collision::{Collider, Collision, Shape},
+    game::{GameSet, SetupSet},
+};
 use bevy::prelude::*;
+
+impl Plugin for PaddlePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(GameState::Game), spawn.in_set(SetupSet::Spawn));
+        app.add_systems(
+            FixedUpdate,
+            (
+                movement.in_set(GameSet::Input),
+                bounce.in_set(GameSet::Resolution),
+            ),
+        );
+    }
+}
 
 const PADDLE_COLOR: Color = Color::WHITE;
 const PADDLE_SIZE: Vec2 = Vec2::new(100., 10.);
 const PADDLE_START_POS: Vec2 = Vec2::new(0., -250.);
 
+pub(super) struct PaddlePlugin;
+
 #[derive(Component)]
 #[require(Solid)]
 pub(super) struct Paddle;
 
-pub(super) fn spawn(commands: &mut Commands) {
+fn spawn(mut commands: Commands) {
     commands.spawn((
         Sprite::from_color(PADDLE_COLOR, Vec2::ONE),
         Transform {
@@ -27,7 +46,7 @@ pub(super) fn spawn(commands: &mut Commands) {
     ));
 }
 
-pub(super) fn movement(
+fn movement(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     paddle: Single<&mut Velocity, With<Paddle>>,
 ) {
@@ -45,11 +64,11 @@ pub(super) fn movement(
     }
 }
 
-pub(super) fn bounce(
+fn bounce(
     mut collisions: MessageReader<Collision>,
     mut paddles: Query<&mut Transform, With<Paddle>>,
     solids: Query<(), With<Solid>>,
-    walls: Query<(), With<Wall>>,
+    walls: Query<(), With<Static>>,
 ) {
     for collision in collisions.read() {
         let (me, other) = (&collision.collisioner, &collision.collisionee);

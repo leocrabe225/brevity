@@ -1,13 +1,14 @@
+mod arena;
 mod ball;
 mod brick;
 mod hud;
+mod intro;
 mod paddle;
 mod progress;
-mod wall;
 
 use super::GameState;
 use crate::{
-    collision::{self, Collision},
+    collision::{self, CollisionSystems},
     colors::BreakoutColors,
 };
 use ball::BallLost;
@@ -19,118 +20,88 @@ use progress::Progress;
 enum GamePhase {
     #[default]
     Intro,
-    AwaitingFirstInput,
     Playing,
+}
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+enum GameSet {
+    Input,
+    Movement,
+    Detection,
+    Resolution,
+    Rules,
+}
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+enum SetupSet {
+    Reset,
+    Spawn,
+    Stage,
 }
 
 pub(super) fn plugin(app: &mut App) {
     app.add_sub_state::<GamePhase>()
-        .add_message::<Collision>()
         .add_message::<BallLost>()
-        .add_systems(OnEnter(GameState::Game), setup_resources)
-        .add_systems(
-            Update,
-            (run_intro, ball::serving_ball_follow_paddle)
-                .chain()
-                .run_if(in_state(GamePhase::Intro)),
+        .add_observer(snap_follower)
+        .configure_sets(
+            OnEnter(GameState::Game),
+            (SetupSet::Reset, SetupSet::Spawn, SetupSet::Stage).chain(),
         )
-        .add_systems(
-            Update,
-            (hud::bounce_size, start_game, ball::serve)
-                .chain()
-                .run_if(in_state(GamePhase::AwaitingFirstInput)),
-        )
-        .add_systems(
-            Update,
+        .configure_sets(
+            FixedUpdate,
             (
-                ball::serve,
-                ball::serving_ball_follow_paddle,
-                hud::fade_out,
-                hud::speed_update_text,
+                GameSet::Input,
+                GameSet::Movement,
+                GameSet::Detection,
+                GameSet::Resolution,
+                GameSet::Rules,
             )
+                .chain()
                 .run_if(in_state(GamePhase::Playing)),
         )
+        .configure_sets(FixedUpdate, CollisionSystems.in_set(GameSet::Detection))
+        .add_systems(
+            OnEnter(GameState::Game),
+            setup_resources.in_set(SetupSet::Reset),
+        )
+        .add_systems(Update, advance_intro.run_if(in_state(GamePhase::Intro)))
+        .add_plugins((
+            intro::IntroPlugin,
+            arena::ArenaPlugin,
+            ball::BallPlugin,
+            brick::BrickPlugin,
+            hud::HudPlugin,
+            paddle::PaddlePlugin,
+            collision::CollisionPlugin,
+        ))
         .add_systems(
             FixedUpdate,
             (
-                paddle::movement,
-                apply_velocity,
-                collision::check_for_collisions,
-                paddle::bounce,
-                ball::bounce,
-                brick::hit_by_ball,
-                ball::hit_by_killzone,
-                ball::hit_by_backboard,
-                ball::speed_update,
-                handle_ball_lost,
-                hud::update_scoreboard,
-            )
-                .chain()
-                .run_if(in_state(GamePhase::Playing)),
+                apply_velocity.in_set(GameSet::Movement),
+                handle_ball_lost.in_set(GameSet::Rules),
+                follow.after(GameSet::Resolution).before(GameSet::Rules),
+            ),
         );
 }
 
 fn setup_resources(mut commands: Commands) {
-    commands.insert_resource(IntroClock(0.));
+    commands.init_resource::<IntroTimer>();
     commands.insert_resource(Score(0));
     commands.insert_resource(Lives(START_LIVES));
     commands.insert_resource(Progress { ..default() });
 }
 
-fn run_intro(
-    mut commands: Commands,
-    time: Res<Time>,
-    mut clock: ResMut<IntroClock>,
-    window: Single<&Window>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
-    lives: Res<Lives>,
-    mut next: ResMut<NextState<GamePhase>>,
-) {
-    let before = clock.0;
-
-    clock.0 += time.delta_secs();
-
-    if before <= WALLS_AT && clock.0 > WALLS_AT {
-        wall::spawn(&mut commands, &window);
-    }
-    if before <= BRICKS_AT && clock.0 > BRICKS_AT {
-        brick::spawn(&mut commands, &window);
-    }
-    if before <= PADDLE_BALL_AT && clock.0 > PADDLE_BALL_AT {
-        paddle::spawn(&mut commands);
-        ball::spawn_serving_ball(
-            &mut commands,
-            &mut meshes,
-            &mut materials,
-            BALL_LIVES_COLORS[lives.0 - 1],
-        );
-    }
-    if before <= SCORE_AT && clock.0 > SCORE_AT {
-        hud::spawn_scoreboard(&mut commands);
-    }
-    if before <= SPACE_HINT_AT && clock.0 > SPACE_HINT_AT {
-        hud::spawn_space_hint(&mut commands);
-    }
-    if clock.0 > INTRO_END {
-        next.set(GamePhase::AwaitingFirstInput);
-    }
-}
-
-const WALLS_AT: f32 = 0.;
-const BRICKS_AT: f32 = 1.;
-const PADDLE_BALL_AT: f32 = 2.;
-const SCORE_AT: f32 = 3.;
-const SPACE_HINT_AT: f32 = 4.;
-const INTRO_END: f32 = 4.;
 const BALL_LIVES_COLORS: [Color; 3] = [Color::BRICK_RED, Color::BRICK_ORANGE, Color::WHITE];
 const START_LIVES: usize = 3;
 
-#[derive(Resource)]
-struct IntroClock(f32);
+#[derive(Resource, Default, Deref, DerefMut)]
+struct IntroTimer(Timer);
 
 #[derive(Component, Default)]
 struct Solid;
+
+#[derive(Component, Default)]
+struct Static;
 
 #[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
@@ -141,18 +112,66 @@ struct Score(usize);
 #[derive(Resource, Deref, DerefMut, Copy, Clone)]
 struct Lives(usize);
 
-fn start_game(keyboard_input: Res<ButtonInput<KeyCode>>, mut next: ResMut<NextState<GamePhase>>) {
-    if !keyboard_input.just_pressed(KeyCode::Space) {
-        return;
-    }
-    next.set(GamePhase::Playing);
+#[derive(Component)]
+struct FollowEntity {
+    entity: Entity,
+    offset: Vec2,
 }
 
-fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, fixed_time: Res<Time<Fixed>>) {
+fn advance_intro(
+    mut timer: ResMut<IntroTimer>,
+    time: Res<Time>,
+    mut next: ResMut<NextState<GamePhase>>,
+) {
+    if timer.0.tick(time.delta()).is_finished() {
+        next.set(GamePhase::Playing);
+    }
+}
+
+fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, fixed_time: Res<Time>) {
     for (mut transform, velocity) in &mut query {
         transform.translation.x += velocity.x * fixed_time.delta_secs();
         transform.translation.y += velocity.y * fixed_time.delta_secs();
     }
+}
+
+fn snap_follower(
+    insert: On<Insert, FollowEntity>,
+    followers: Query<&FollowEntity>,
+    mut transforms: Query<&mut Transform>,
+) {
+    let Ok(follow_entity) = followers.get(insert.entity) else {
+        return;
+    };
+    let Ok(followee) = transforms
+        .get(follow_entity.entity)
+        .map(|transform| transform.translation)
+    else {
+        return;
+    };
+    let Ok(mut follower) = transforms.get_mut(insert.entity) else {
+        return;
+    };
+    apply_follow(&mut follower, follow_entity.offset, &followee.xy())
+}
+
+fn follow(followers: Query<(Entity, &FollowEntity)>, mut transforms: Query<&mut Transform>) {
+    for (entity, follow_entity) in followers {
+        let Ok(followee) = transforms
+            .get(follow_entity.entity)
+            .map(|transform| transform.translation)
+        else {
+            continue;
+        };
+        let Ok(mut follower) = transforms.get_mut(entity) else {
+            continue;
+        };
+        apply_follow(&mut follower, follow_entity.offset, &followee.xy())
+    }
+}
+
+fn apply_follow(follower: &mut Transform, offset: Vec2, followee: &Vec2) {
+    follower.translation = (followee + offset).extend(follower.translation.z);
 }
 
 fn handle_ball_lost(
@@ -161,6 +180,7 @@ fn handle_ball_lost(
     mut lives: ResMut<Lives>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
+    paddle: Single<Entity, With<paddle::Paddle>>,
 ) {
     for _ in ball_lost.read() {
         **lives -= 1;
@@ -170,6 +190,7 @@ fn handle_ball_lost(
         }
 
         ball::spawn_serving_ball(
+            paddle.entity(),
             &mut commands,
             &mut meshes,
             &mut materials,

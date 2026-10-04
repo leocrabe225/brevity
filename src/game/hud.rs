@@ -1,34 +1,73 @@
 use std::f32::consts::PI;
 
-use crate::game::GamePhase;
+use crate::{
+    GameState,
+    game::{FollowEntity, GamePhase, SetupSet, paddle::Paddle},
+};
 
 use super::{Score, progress::Progress};
 use bevy::{prelude::*, text::TextSection};
 
+impl Plugin for HudPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_observer(spawn_hints);
+        app.add_systems(
+            OnEnter(GameState::Game),
+            spawn_scoreboard.in_set(SetupSet::Spawn),
+        );
+        app.add_systems(
+            Update,
+            (
+                remove_on_press,
+                disappear_hint,
+                bounce_size,
+                fade_out,
+                speed_update_text,
+                update_scoreboard,
+            )
+                .run_if(in_state(GamePhase::Playing)),
+        );
+    }
+}
+
 const SCOREBOARD_FONT_SIZE: FontSize = FontSize::Px(200.);
 const SPEED_FONT_SIZE: FontSize = FontSize::Px(40.);
 const SPACE_HINT_FONT_SIZE: FontSize = FontSize::Px(40.);
+const ARROW_HINT_FONT_SIZE: FontSize = FontSize::Px(60.);
 
 const SPEED_UPDATE_POS: Vec2 = Vec2::new(0., -300.);
 const SCORE_POS: Vec2 = Vec2::new(0., 0.);
-const SPACE_HINT_POS: Vec2 = Vec2::new(0., -155.);
+const SPACE_HINT_Y: f32 = 95.;
+const LEFT_ARROW_HINT_X: f32 = -120.;
+const RIGHT_ARROW_HINT_X: f32 = 120.;
+
+pub(super) struct HudPlugin;
 
 #[derive(Component)]
 pub(super) struct ScoreboardText;
 
 #[derive(Component)]
-pub(super) struct SpaceHintText;
+pub(super) struct Hint;
 
 #[derive(Component)]
-pub(super) struct SizeBounce {
+struct SizeBounce {
     clock: f32,
     font_size: FontSize,
 }
 
 #[derive(Component)]
-pub(super) struct FadeOut(Timer);
+struct RemoveOnPress(Vec<KeyCode>);
 
-pub(super) fn spawn_scoreboard(commands: &mut Commands) {
+#[derive(Component)]
+struct DisappearingHint {
+    clock: f32,
+    start_size: FontSize,
+}
+
+#[derive(Component)]
+struct FadeOut(Timer);
+
+fn spawn_scoreboard(mut commands: Commands) {
     commands.spawn((
         Text2d::new("0"),
         TextFont {
@@ -44,36 +83,124 @@ pub(super) fn spawn_scoreboard(commands: &mut Commands) {
     ));
 }
 
-pub(super) fn spawn_space_hint(commands: &mut Commands) {
+fn spawn_hints(add: On<Add, Paddle>, mut commands: Commands) {
+    spawn_space_hint(&mut commands, add.entity);
+    spawn_arrows_hint(&mut commands, add.entity);
+}
+
+fn spawn_space_hint(commands: &mut Commands, follow: Entity) {
+    spawn_hint(
+        commands,
+        Vec2::ZERO,
+        "PRESS\nSPACE",
+        SPACE_HINT_FONT_SIZE,
+        vec![KeyCode::Space],
+        FollowEntity {
+            entity: follow,
+            offset: Vec2::new(0., SPACE_HINT_Y),
+        },
+    );
+}
+
+fn spawn_arrows_hint(commands: &mut Commands, follow: Entity) {
+    spawn_hint(
+        commands,
+        Vec2::ZERO,
+        "<",
+        ARROW_HINT_FONT_SIZE,
+        vec![KeyCode::ArrowLeft, KeyCode::ArrowRight],
+        FollowEntity {
+            entity: follow,
+            offset: Vec2::new(LEFT_ARROW_HINT_X, 0.),
+        },
+    );
+    spawn_hint(
+        commands,
+        Vec2::ZERO,
+        ">",
+        ARROW_HINT_FONT_SIZE,
+        vec![KeyCode::ArrowRight, KeyCode::ArrowLeft],
+        FollowEntity {
+            entity: follow,
+            offset: Vec2::new(RIGHT_ARROW_HINT_X, 0.),
+        },
+    );
+}
+
+fn spawn_hint(
+    commands: &mut Commands,
+    pos: Vec2,
+    text: &str,
+    font_size: FontSize,
+    remove_keys: Vec<KeyCode>,
+    extra: impl Bundle,
+) {
     commands.spawn((
-        Text2d::new("PRESS\nSPACE"),
+        Hint,
+        Text2d::new(text),
         TextFont {
-            font_size: SPACE_HINT_FONT_SIZE,
+            font_size,
             ..default()
         },
         TextColor(Color::WHITE),
         Transform {
-            translation: SPACE_HINT_POS.extend(-1.),
+            translation: pos.extend(-1.),
             ..default()
         },
-        SpaceHintText,
         SizeBounce {
             clock: 0.,
-            font_size: SPACE_HINT_FONT_SIZE,
+            font_size,
         },
-        DespawnOnExit(GamePhase::AwaitingFirstInput),
+        RemoveOnPress(remove_keys),
+        extra,
     ));
 }
 
-pub(super) fn bounce_size(time: Res<Time>, mut query: Query<(&mut TextFont, &mut SizeBounce)>) {
+fn remove_on_press(
+    mut commands: Commands,
+    query: Query<(&RemoveOnPress, &TextFont, Entity)>,
+    keyboard_input: Res<ButtonInput<KeyCode>>,
+) {
+    for (remove, font, entity) in query {
+        if keyboard_input.any_just_pressed(remove.0.clone()) {
+            commands.entity(entity).insert(DisappearingHint {
+                clock: 0.,
+                start_size: font.font_size,
+            });
+            commands
+                .entity(entity)
+                .remove::<RemoveOnPress>()
+                .remove::<SizeBounce>();
+        }
+    }
+}
+
+fn disappear_hint(
+    mut commands: Commands,
+    query: Query<(&mut DisappearingHint, &mut TextFont, Entity)>,
+    time: Res<Time>,
+) {
+    const LENGTH: f32 = 0.3;
+    for (mut disappearing, mut font, entity) in query {
+        disappearing.clock += time.delta_secs();
+        if disappearing.clock >= LENGTH {
+            commands.entity(entity).despawn();
+            continue;
+        }
+        let progress = EaseFunction::BackIn.sample_clamped(disappearing.clock * (1. / LENGTH));
+        font.font_size = disappearing.start_size * (1. - progress);
+    }
+}
+
+fn bounce_size(time: Res<Time>, mut query: Query<(&mut TextFont, &mut SizeBounce)>) {
     for (mut font, mut size_bounce) in &mut query {
         size_bounce.clock += time.delta_secs();
-        let progress = 1. + 0.5 * (PI * size_bounce.clock).sin();
+        let progress = 1. + 0.15 * (PI * size_bounce.clock / 1.5).sin();
         font.font_size = size_bounce.font_size * progress;
     }
 }
 
-pub(super) fn fade_out(
+fn fade_out(
     time: Res<Time>,
     mut commands: Commands,
     mut query: Query<(Entity, &mut FadeOut, &mut TextColor)>,
@@ -88,7 +215,7 @@ pub(super) fn fade_out(
     }
 }
 
-pub(super) fn speed_update_text(
+fn speed_update_text(
     mut commands: Commands,
     progress: Res<Progress>,
     mut last: Local<Option<f32>>,
@@ -112,10 +239,7 @@ pub(super) fn speed_update_text(
     *last = Some(multiplier);
 }
 
-pub(super) fn update_scoreboard(
-    score: Res<Score>,
-    mut text: Single<&mut Text2d, With<ScoreboardText>>,
-) {
+fn update_scoreboard(score: Res<Score>, mut text: Single<&mut Text2d, With<ScoreboardText>>) {
     let new_text = text.get_text_mut();
 
     *new_text = score.to_string();

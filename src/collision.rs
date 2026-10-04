@@ -1,5 +1,17 @@
 use bevy::{math::bounding::Aabb2d, prelude::*};
 
+impl Plugin for CollisionPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_message::<Collision>();
+        app.add_systems(FixedUpdate, check_for_collisions.in_set(CollisionSystems));
+    }
+}
+
+#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct CollisionSystems;
+
+pub(super) struct CollisionPlugin;
+
 #[derive(Clone, Copy)]
 pub(super) enum Shape {
     Circle(Circle),
@@ -40,7 +52,7 @@ pub(super) struct Collision {
     pub(super) collisionee: CollisionMember,
 }
 
-pub(super) fn check_for_collisions(
+fn check_for_collisions(
     query: Query<(Entity, &Transform, &Collider)>,
     mut collisions: MessageWriter<Collision>,
 ) {

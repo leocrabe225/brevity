@@ -1,7 +1,18 @@
 use super::{Score, Solid, ball::Ball, progress::Progress};
+use crate::GameState;
 use crate::collision::{Collider, Collision, Shape};
 use crate::colors::BreakoutColors;
+use crate::game::{GameSet, SetupSet};
 use bevy::prelude::*;
+
+impl Plugin for BrickPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(GameState::Game), spawn.in_set(SetupSet::Spawn));
+        app.add_systems(FixedUpdate, hit_by_ball.in_set(GameSet::Resolution));
+    }
+}
+
+pub(super) struct BrickPlugin;
 
 const BRICK_ROW_COLORS: [BrickColor; 8] = [
     BrickColor::Red,
@@ -51,7 +62,7 @@ impl BrickColor {
     }
 }
 
-pub(super) fn spawn(commands: &mut Commands, window: &Window) {
+fn spawn(mut commands: Commands, window: Single<&Window>) {
     let window_size = window.resolution.physical_size();
     let top = (window_size.y as f32) / 2.;
     let left = -(window_size.x as f32) / 2.;
@@ -87,7 +98,7 @@ pub(super) fn spawn(commands: &mut Commands, window: &Window) {
     }
 }
 
-pub(super) fn hit_by_ball(
+fn hit_by_ball(
     mut commands: Commands,
     mut collisions: MessageReader<Collision>,
     bricks: Query<&Brick>,

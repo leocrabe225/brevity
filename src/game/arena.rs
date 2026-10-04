@@ -1,17 +1,26 @@
-use super::Solid;
-use crate::collision::{Collider, Shape};
+use super::{Solid, Static};
+use crate::{
+    GameState,
+    collision::{Collider, Shape},
+    game::SetupSet,
+};
 use bevy::prelude::*;
 
-#[derive(Component)]
-#[require(Solid)]
-pub(super) struct Wall;
+impl Plugin for ArenaPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(GameState::Game), spawn.in_set(SetupSet::Spawn));
+    }
+}
+
+pub(super) struct ArenaPlugin;
+
 #[derive(Component)]
 pub(super) struct Backboard;
 
 #[derive(Component)]
-pub(super) struct Killzone;
+pub(super) struct OutOfBounds;
 
-pub(super) fn spawn(commands: &mut Commands, window: &Window) {
+fn spawn(mut commands: Commands, window: Single<&Window>) {
     let window_size = window.resolution.physical_size();
     let top = (window_size.y as f32) / 2.;
     let bottom = -(window_size.y as f32) / 2.;
@@ -23,7 +32,8 @@ pub(super) fn spawn(commands: &mut Commands, window: &Window) {
             translation: Vec3::new(0.0, top + 10., 0.0),
             ..default()
         },
-        Wall,
+        Solid,
+        Static,
         Backboard,
         Collider {
             shape: Shape::Rectangle(Rectangle::new(window_size.x as f32, 20.0)),
@@ -34,7 +44,8 @@ pub(super) fn spawn(commands: &mut Commands, window: &Window) {
             translation: Vec3::new(0.0, bottom - 10., 0.0),
             ..default()
         },
-        Wall,
+        Solid,
+        Static,
         Collider {
             shape: Shape::Rectangle(Rectangle::new(window_size.x as f32, 20.0)),
         },
@@ -44,7 +55,7 @@ pub(super) fn spawn(commands: &mut Commands, window: &Window) {
             translation: Vec3::new(0.0, bottom + 45., 0.0),
             ..default()
         },
-        Killzone,
+        OutOfBounds,
         Collider {
             shape: Shape::Rectangle(Rectangle::new(window_size.x as f32, 90.0)),
         },
@@ -54,7 +65,8 @@ pub(super) fn spawn(commands: &mut Commands, window: &Window) {
             translation: Vec3::new(left - 10., 0.0, 0.0),
             ..default()
         },
-        Wall,
+        Solid,
+        Static,
         Collider {
             shape: Shape::Rectangle(Rectangle::new(20., window_size.x as f32)),
         },
@@ -64,7 +76,8 @@ pub(super) fn spawn(commands: &mut Commands, window: &Window) {
             translation: Vec3::new(right + 10., 0.0, 0.0),
             ..default()
         },
-        Wall,
+        Solid,
+        Static,
         Collider {
             shape: Shape::Rectangle(Rectangle::new(20., window_size.x as f32)),
         },
