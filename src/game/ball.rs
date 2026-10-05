@@ -179,5 +179,5 @@ fn speed_update(balls: Query<&mut Velocity, With<Ball>>, progress: Res<Progress>
 }
 
 fn current_speed(progress: &Progress) -> f32 {
-    BALL_STARTING_SPEED * progress.speed_multiplier()
+    BALL_STARTING_SPEED * progress.speed_multiplier().to_f32()
 }

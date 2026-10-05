@@ -2,11 +2,16 @@ use std::f32::consts::PI;
 
 use crate::{
     GameState,
+    decimal2::Decimal2,
     game::{FollowEntity, GamePhase, SetupSet, paddle::Paddle},
 };
 
 use super::{Score, progress::Progress};
-use bevy::{prelude::*, text::TextSection};
+use bevy::{
+    prelude::*,
+    sprite::Anchor,
+    text::{ComputedTextBlock, Text2dUpdateSystems, TextLayoutInfo, TextSection},
+};
 
 impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
@@ -27,10 +32,17 @@ impl Plugin for HudPlugin {
             )
                 .run_if(in_state(GamePhase::Playing)),
         );
+        app.add_systems(
+            PostUpdate,
+            place_decimals
+                .after(Text2dUpdateSystems)
+                .before(TransformSystems::Propagate),
+        );
     }
 }
 
-const SCOREBOARD_FONT_SIZE: FontSize = FontSize::Px(200.);
+const SCOREBOARD_INTEGER_FONT_SIZE: FontSize = FontSize::Px(200.);
+const SCOREBOARD_DECIMAL_FONT_SIZE: FontSize = FontSize::Px(40.);
 const SPEED_FONT_SIZE: FontSize = FontSize::Px(40.);
 const SPACE_HINT_FONT_SIZE: FontSize = FontSize::Px(40.);
 const ARROW_HINT_FONT_SIZE: FontSize = FontSize::Px(60.);
@@ -45,6 +57,9 @@ pub(super) struct HudPlugin;
 
 #[derive(Component)]
 pub(super) struct ScoreboardText;
+
+#[derive(Component)]
+pub(super) struct ScoreboardDecimals;
 
 #[derive(Component)]
 pub(super) struct Hint;
@@ -69,9 +84,9 @@ struct FadeOut(Timer);
 
 fn spawn_scoreboard(mut commands: Commands) {
     commands.spawn((
-        Text2d::new("0"),
+        Text2d::new(Decimal2::ZERO.integer_text()),
         TextFont {
-            font_size: SCOREBOARD_FONT_SIZE,
+            font_size: SCOREBOARD_INTEGER_FONT_SIZE,
             ..default()
         },
         TextColor(Color::WHITE),
@@ -80,6 +95,16 @@ fn spawn_scoreboard(mut commands: Commands) {
             ..default()
         },
         ScoreboardText,
+        children![(
+            Text2d::new(Decimal2::ZERO.decimal_text()),
+            TextFont {
+                font_size: SCOREBOARD_DECIMAL_FONT_SIZE,
+                ..default()
+            },
+            TextColor(Color::WHITE),
+            Anchor::BOTTOM_LEFT,
+            ScoreboardDecimals,
+        )],
     ));
 }
 
@@ -218,12 +243,12 @@ fn fade_out(
 fn speed_update_text(
     mut commands: Commands,
     progress: Res<Progress>,
-    mut last: Local<Option<f32>>,
+    mut last: Local<Option<Decimal2>>,
 ) {
     let multiplier = progress.speed_multiplier();
     if last.is_some_and(|last| multiplier > last) {
         commands.spawn((
-            Text2d::new(format!("x{multiplier:.2}")),
+            Text2d::new(format!("x{multiplier}")),
             FadeOut(Timer::from_seconds(1.5, TimerMode::Once)),
             TextFont {
                 font_size: SPEED_FONT_SIZE,
@@ -239,8 +264,44 @@ fn speed_update_text(
     *last = Some(multiplier);
 }
 
-fn update_scoreboard(score: Res<Score>, mut text: Single<&mut Text2d, With<ScoreboardText>>) {
-    let new_text = text.get_text_mut();
+fn update_scoreboard(
+    score: Res<Score>,
+    mut integer: Single<&mut Text2d, (With<ScoreboardText>, Without<ScoreboardDecimals>)>,
+    mut decimal: Single<&mut Text2d, (With<ScoreboardDecimals>, Without<ScoreboardText>)>,
+) {
+    let new_integer = integer.get_text_mut();
+    let new_decimal = decimal.get_text_mut();
 
-    *new_text = score.to_string();
+    *new_integer = score.integer_text();
+    *new_decimal = score.decimal_text();
+}
+
+fn first_baseline(block: &ComputedTextBlock, layout: &TextLayoutInfo) -> Option<f32> {
+    Some(block.buffer().get(0)?.metrics().baseline / layout.scale_factor)
+}
+
+fn place_decimals(
+    integers: Query<(&TextLayoutInfo, &ComputedTextBlock, &Children), With<ScoreboardText>>,
+    mut decimals: Query<
+        (&mut Transform, &TextLayoutInfo, &ComputedTextBlock),
+        With<ScoreboardDecimals>,
+    >,
+) {
+    for (layout, block, children) in &integers {
+        let Some(baseline) = first_baseline(block, layout) else {
+            continue;
+        };
+        for child in children.iter() {
+            let Ok((mut transform, decimal_layout, decimal_block)) = decimals.get_mut(child) else {
+                continue;
+            };
+            let Some(decimal_baseline) = first_baseline(decimal_block, decimal_layout) else {
+                continue;
+            };
+            let padding = layout.size.y - baseline;
+            let decimal_padding = decimal_layout.size.y - decimal_baseline;
+            transform.translation.x = layout.size.x / 2.;
+            transform.translation.y = -layout.size.y / 2. + padding - decimal_padding;
+        }
+    }
 }

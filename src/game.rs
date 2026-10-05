@@ -10,6 +10,7 @@ use super::GameState;
 use crate::{
     collision::{self, CollisionSystems},
     colors::BreakoutColors,
+    decimal2::Decimal2,
 };
 use ball::BallLost;
 use bevy::prelude::*;
@@ -86,7 +87,7 @@ pub(super) fn plugin(app: &mut App) {
 
 fn setup_resources(mut commands: Commands) {
     commands.init_resource::<IntroTimer>();
-    commands.insert_resource(Score(0));
+    commands.insert_resource(Score(Decimal2::ZERO));
     commands.insert_resource(Lives(START_LIVES));
     commands.insert_resource(Progress { ..default() });
 }
@@ -107,7 +108,7 @@ struct Static;
 struct Velocity(Vec2);
 
 #[derive(Resource, Deref, DerefMut)]
-struct Score(usize);
+struct Score(Decimal2);
 
 #[derive(Resource, Deref, DerefMut, Copy, Clone)]
 struct Lives(usize);

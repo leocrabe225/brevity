@@ -52,7 +52,7 @@ impl BrickColor {
         }
     }
 
-    const fn points(self) -> usize {
+    const fn points(self) -> u32 {
         match self {
             BrickColor::Yellow => 1,
             BrickColor::Green => 3,
@@ -113,7 +113,7 @@ fn hit_by_ball(
         let Ok(brick) = bricks.get(collision.collisioner.entity) else {
             continue;
         };
-        **score += brick.color.points();
+        **score += progress.speed_multiplier() * brick.color.points();
         progress.bricks_hit += 1;
         if brick.color == BrickColor::Orange {
             progress.orange_reached = true;
