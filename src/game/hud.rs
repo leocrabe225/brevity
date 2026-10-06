@@ -2,8 +2,13 @@ use std::f32::consts::PI;
 
 use crate::{
     GameState,
+    colors::BreakoutColors,
     decimal2::Decimal2,
-    game::{FollowEntity, GamePhase, SetupSet, paddle::Paddle},
+    game::{
+        FollowEntity, GamePhase, SetupSet, Velocity,
+        paddle::Paddle,
+        progress::{SpeedBonus, SpeedUp},
+    },
 };
 
 use super::{Score, progress::Progress};
@@ -18,7 +23,7 @@ impl Plugin for HudPlugin {
         app.add_observer(spawn_hints);
         app.add_systems(
             OnEnter(GameState::Game),
-            spawn_scoreboard.in_set(SetupSet::Spawn),
+            (spawn_score, spawn_speed).in_set(SetupSet::Spawn),
         );
         app.add_systems(
             Update,
@@ -27,8 +32,9 @@ impl Plugin for HudPlugin {
                 disappear_hint,
                 bounce_size,
                 fade_out,
-                speed_update_text,
-                update_scoreboard,
+                speedup_text,
+                update_speed,
+                update_score,
             )
                 .run_if(in_state(GamePhase::Playing)),
         );
@@ -43,11 +49,12 @@ impl Plugin for HudPlugin {
 
 const SCOREBOARD_INTEGER_FONT_SIZE: FontSize = FontSize::Px(200.);
 const SCOREBOARD_DECIMAL_FONT_SIZE: FontSize = FontSize::Px(40.);
-const SPEED_FONT_SIZE: FontSize = FontSize::Px(40.);
+const SPEED_FONT_SIZE: FontSize = FontSize::Px(20.);
+const SPEEDUP_FONT_SIZE: FontSize = FontSize::Px(20.);
 const SPACE_HINT_FONT_SIZE: FontSize = FontSize::Px(40.);
 const ARROW_HINT_FONT_SIZE: FontSize = FontSize::Px(60.);
 
-const SPEED_UPDATE_POS: Vec2 = Vec2::new(0., -300.);
+const SPEED_POS: Vec2 = Vec2::new(0., 210.);
 const SCORE_POS: Vec2 = Vec2::new(0., 0.);
 const SPACE_HINT_Y: f32 = 95.;
 const LEFT_ARROW_HINT_X: f32 = -120.;
@@ -56,10 +63,13 @@ const RIGHT_ARROW_HINT_X: f32 = 120.;
 pub(super) struct HudPlugin;
 
 #[derive(Component)]
-pub(super) struct ScoreboardText;
+pub(super) struct ScoreIntegerText;
 
 #[derive(Component)]
-pub(super) struct ScoreboardDecimals;
+pub(super) struct ScoreDecimalsText;
+
+#[derive(Component)]
+pub(super) struct SpeedText;
 
 #[derive(Component)]
 pub(super) struct Hint;
@@ -82,7 +92,41 @@ struct DisappearingHint {
 #[derive(Component)]
 struct FadeOut(Timer);
 
-fn spawn_scoreboard(mut commands: Commands) {
+impl SpeedBonus {
+    fn color(self) -> Color {
+        match self {
+            SpeedBonus::FirstHitCheckpoint => Color::BRICK_YELLOW,
+            SpeedBonus::SecondHitCheckpoint => Color::BRICK_GREEN,
+            SpeedBonus::OrangeRow => Color::BRICK_ORANGE,
+            SpeedBonus::RedRow => Color::BRICK_RED,
+            SpeedBonus::BackboardTouched(_) => Color::BLACK,
+        }
+    }
+}
+
+impl Progress {
+    const STOPS: [(f32, Color); 6] = [
+        (1.0, Color::WHITE),
+        (1.1, Color::BRICK_YELLOW),
+        (1.2, Color::BRICK_GREEN),
+        (1.3, Color::BRICK_ORANGE),
+        (1.4, Color::BRICK_RED),
+        (2.0, Color::BLACK),
+    ];
+
+    fn color(&self) -> Color {
+        #[expect(
+            clippy::expect_used,
+            reason = "static keyframes, failure is a code bug"
+        )]
+        let gradient =
+            UnevenSampleCurve::new(Self::STOPS, Color::mix).expect("speed gradient needs 2+ stops");
+
+        gradient.sample_clamped(self.speed_multiplier().to_f32())
+    }
+}
+
+fn spawn_score(mut commands: Commands) {
     commands.spawn((
         Text2d::new(Decimal2::ZERO.integer_text()),
         TextFont {
@@ -94,7 +138,7 @@ fn spawn_scoreboard(mut commands: Commands) {
             translation: SCORE_POS.extend(-1.),
             ..default()
         },
-        ScoreboardText,
+        ScoreIntegerText,
         children![(
             Text2d::new(Decimal2::ZERO.decimal_text()),
             TextFont {
@@ -103,8 +147,24 @@ fn spawn_scoreboard(mut commands: Commands) {
             },
             TextColor(Color::WHITE),
             Anchor::BOTTOM_LEFT,
-            ScoreboardDecimals,
+            ScoreDecimalsText,
         )],
+    ));
+}
+
+fn spawn_speed(mut commands: Commands) {
+    commands.spawn((
+        Text2d::new(format!("x{}", Decimal2::ONE)),
+        TextFont {
+            font_size: SPEED_FONT_SIZE,
+            ..default()
+        },
+        TextColor(Color::WHITE),
+        Transform {
+            translation: SPEED_POS.extend(-1.),
+            ..default()
+        },
+        SpeedText,
     ));
 }
 
@@ -240,40 +300,42 @@ fn fade_out(
     }
 }
 
-fn speed_update_text(
-    mut commands: Commands,
+fn update_speed(
     progress: Res<Progress>,
-    mut last: Local<Option<Decimal2>>,
+    speed: Single<(&mut Text2d, &mut TextColor), With<SpeedText>>,
 ) {
-    let multiplier = progress.speed_multiplier();
-    if last.is_some_and(|last| multiplier > last) {
-        commands.spawn((
-            Text2d::new(format!("x{multiplier}")),
-            FadeOut(Timer::from_seconds(1.5, TimerMode::Once)),
-            TextFont {
-                font_size: SPEED_FONT_SIZE,
-                ..default()
-            },
-            TextColor(Color::WHITE),
-            Transform {
-                translation: SPEED_UPDATE_POS.extend(0.),
-                ..default()
-            },
-        ));
-    }
-    *last = Some(multiplier);
+    let (mut text, mut color) = speed.into_inner();
+    *text.get_text_mut() = format!("x{}", progress.speed_multiplier());
+    color.0 = progress.color();
 }
 
-fn update_scoreboard(
-    score: Res<Score>,
-    mut integer: Single<&mut Text2d, (With<ScoreboardText>, Without<ScoreboardDecimals>)>,
-    mut decimal: Single<&mut Text2d, (With<ScoreboardDecimals>, Without<ScoreboardText>)>,
-) {
-    let new_integer = integer.get_text_mut();
-    let new_decimal = decimal.get_text_mut();
+fn speedup_text(mut commands: Commands, mut speedups: MessageReader<SpeedUp>) {
+    for speedup in speedups.read() {
+        let direction = Vec2::from_angle(rand::random_range(0. ..PI));
+        commands.spawn((
+            Text2d::new(format!("x{}", speedup.gained)),
+            FadeOut(Timer::from_seconds(1.5, TimerMode::Once)),
+            TextFont {
+                font_size: SPEEDUP_FONT_SIZE,
+                ..default()
+            },
+            TextColor(speedup.reason.color()),
+            Transform {
+                translation: (SPEED_POS + Vec2::Y * 20.).extend(1.),
+                ..default()
+            },
+            Velocity(direction * 15.),
+        ));
+    }
+}
 
-    *new_integer = score.integer_text();
-    *new_decimal = score.decimal_text();
+fn update_score(
+    score: Res<Score>,
+    mut integer: Single<&mut Text2d, (With<ScoreIntegerText>, Without<ScoreDecimalsText>)>,
+    mut decimal: Single<&mut Text2d, (With<ScoreDecimalsText>, Without<ScoreIntegerText>)>,
+) {
+    *integer.get_text_mut() = score.integer_text();
+    *decimal.get_text_mut() = score.decimal_text();
 }
 
 fn first_baseline(block: &ComputedTextBlock, layout: &TextLayoutInfo) -> Option<f32> {
@@ -281,10 +343,10 @@ fn first_baseline(block: &ComputedTextBlock, layout: &TextLayoutInfo) -> Option<
 }
 
 fn place_decimals(
-    integers: Query<(&TextLayoutInfo, &ComputedTextBlock, &Children), With<ScoreboardText>>,
+    integers: Query<(&TextLayoutInfo, &ComputedTextBlock, &Children), With<ScoreIntegerText>>,
     mut decimals: Query<
         (&mut Transform, &TextLayoutInfo, &ComputedTextBlock),
-        With<ScoreboardDecimals>,
+        With<ScoreDecimalsText>,
     >,
 ) {
     for (layout, block, children) in &integers {

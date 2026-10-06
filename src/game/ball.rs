@@ -82,7 +82,7 @@ fn serve(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     serving_balls: Query<Entity, With<Serving>>,
 ) {
-    if !keyboard_input.just_pressed(KeyCode::Space) {
+    if !keyboard_input.pressed(KeyCode::Space) {
         return;
     }
     for serving_ball in serving_balls {
@@ -168,7 +168,7 @@ fn hit_by_backboard(
             continue;
         }
 
-        progress.backboard_touched += 1;
+        progress.backboard_touches += 1;
     }
 }
 

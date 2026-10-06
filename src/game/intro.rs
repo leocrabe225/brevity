@@ -6,7 +6,7 @@ use crate::{
         IntroTimer, SetupSet,
         ball::Ball,
         brick::Brick,
-        hud::{Hint, ScoreboardText},
+        hud::{Hint, ScoreIntegerText, SpeedText},
         paddle::Paddle,
     },
 };
@@ -25,8 +25,10 @@ pub(super) struct IntroPlugin;
 struct RevealAt(f32);
 
 const BRICKS_AT: f32 = 1.;
-const PADDLE_BALL_AT: f32 = 2.;
+const PADDLE_AT: f32 = 2.;
+const BALL_AT: f32 = 2.;
 const SCORE_AT: f32 = 3.;
+const SPEED_AT: f32 = 3.;
 const HINTS_AT: f32 = 4.;
 const INTRO_END: f32 = 4.;
 
@@ -35,7 +37,8 @@ fn setup(
     bricks: Query<Entity, With<Brick>>,
     paddle: Single<Entity, With<Paddle>>,
     balls: Query<Entity, With<Ball>>,
-    scoreboard: Single<Entity, With<ScoreboardText>>,
+    score: Single<Entity, With<ScoreIntegerText>>,
+    speed: Single<Entity, With<SpeedText>>,
     hints: Query<Entity, With<Hint>>,
 ) {
     for brick in bricks {
@@ -45,15 +48,18 @@ fn setup(
     }
     commands
         .entity(paddle.entity())
-        .insert((Visibility::Hidden, RevealAt(PADDLE_BALL_AT)));
+        .insert((Visibility::Hidden, RevealAt(PADDLE_AT)));
     for ball in balls {
         commands
             .entity(ball)
-            .insert((Visibility::Hidden, RevealAt(PADDLE_BALL_AT)));
+            .insert((Visibility::Hidden, RevealAt(BALL_AT)));
     }
     commands
-        .entity(scoreboard.entity())
+        .entity(score.entity())
         .insert((Visibility::Hidden, RevealAt(SCORE_AT)));
+    commands
+        .entity(speed.entity())
+        .insert((Visibility::Hidden, RevealAt(SPEED_AT)));
     for hint in hints {
         commands
             .entity(hint)

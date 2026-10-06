@@ -1,5 +1,8 @@
-use std::fmt;
-use std::ops::{Add, AddAssign, Mul};
+use std::{
+    fmt,
+    iter::Sum,
+    ops::{Add, AddAssign, Mul, Sub},
+};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub(super) struct Decimal2(u32);
@@ -44,10 +47,23 @@ impl AddAssign for Decimal2 {
     }
 }
 
+impl Sub for Decimal2 {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        Self(self.0 - rhs.0)
+    }
+}
+
 impl Mul<u32> for Decimal2 {
     type Output = Self;
     fn mul(self, rhs: u32) -> Self {
         Self(self.0 * rhs)
+    }
+}
+
+impl Sum for Decimal2 {
+    fn sum<I: Iterator<Item = Self>>(iter: I) -> Self {
+        iter.fold(Self::ZERO, Add::add)
     }
 }
 

@@ -14,7 +14,6 @@ use crate::{
 };
 use ball::BallLost;
 use bevy::prelude::*;
-use progress::Progress;
 
 #[derive(SubStates, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[source(GameState = GameState::Game)]
@@ -74,6 +73,7 @@ pub(super) fn plugin(app: &mut App) {
             hud::HudPlugin,
             paddle::PaddlePlugin,
             collision::CollisionPlugin,
+            progress::ProgressPlugin,
         ))
         .add_systems(
             FixedUpdate,
@@ -89,7 +89,6 @@ fn setup_resources(mut commands: Commands) {
     commands.init_resource::<IntroTimer>();
     commands.insert_resource(Score(Decimal2::ZERO));
     commands.insert_resource(Lives(START_LIVES));
-    commands.insert_resource(Progress { ..default() });
 }
 
 const BALL_LIVES_COLORS: [Color; 3] = [Color::BRICK_RED, Color::BRICK_ORANGE, Color::WHITE];

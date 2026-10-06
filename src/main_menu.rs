@@ -16,7 +16,7 @@ fn setup(mut commands: Commands) {
         Title
         colored_text(
             "BREAKOUT",
-            FontSize::Px(67.),
+            TITLE_FONT_SIZE,
             2,
             &[
                 Color::BRICK_YELLOW,
@@ -27,6 +27,8 @@ fn setup(mut commands: Commands) {
         )
     ]);
 }
+
+const TITLE_FONT_SIZE: FontSize = FontSize::Px(67.);
 
 const TITLE_START_POSITION: Vec3 = Vec3::new(0., 300., -1.);
 const TITLE_END_POSITION: Vec3 = Vec3::new(0., 170., -1.);
