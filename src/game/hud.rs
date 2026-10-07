@@ -14,8 +14,9 @@ use crate::{
 use super::{Score, progress::Progress};
 use bevy::{
     prelude::*,
-    sprite::Anchor,
-    text::{ComputedTextBlock, Text2dUpdateSystems, TextLayoutInfo, TextSection},
+    sprite::{Anchor, update_text2d_layout},
+    text::{ComputedTextBlock, TextLayoutInfo, TextSection},
+    ui::UiSystems,
 };
 
 impl Plugin for HudPlugin {
@@ -41,8 +42,11 @@ impl Plugin for HudPlugin {
         app.add_systems(
             PostUpdate,
             place_decimals
-                .after(Text2dUpdateSystems)
-                .before(TransformSystems::Propagate),
+                .after(update_text2d_layout)
+                .before(TransformSystems::Propagate)
+                .ambiguous_with(UiSystems::Content)
+                .ambiguous_with(UiSystems::Layout)
+                .ambiguous_with(UiSystems::PostLayout),
         );
     }
 }

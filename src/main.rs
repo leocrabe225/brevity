@@ -3,10 +3,19 @@ mod colors;
 mod decimal2;
 mod game;
 mod main_menu;
-use bevy::prelude::*;
+use bevy::{
+    ecs::schedule::{LogLevel, ScheduleBuildSettings},
+    prelude::*,
+};
 
 fn main() {
+    let schedule_build_settings = ScheduleBuildSettings {
+        ambiguity_detection: LogLevel::Warn,
+        auto_insert_apply_deferred: false,
+        ..default()
+    };
     App::new()
+        .configure_schedules(schedule_build_settings)
         .add_plugins(DefaultPlugins)
         .init_state::<GameState>()
         .add_systems(Startup, spawn_camera)
