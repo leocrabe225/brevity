@@ -66,7 +66,7 @@ pub(super) fn spawn_serving_ball(
     commands.spawn((
         Mesh2d(meshes.add(Circle::default())),
         MeshMaterial2d(materials.add(color)),
-        Transform::from_translation(Vec3::ZERO).with_scale(Vec2::splat(BALL_DIAMETER).extend(1.)),
+        Transform::from_translation(Vec3::ZERO).with_scale(Vec2::splat(BALL_DIAMETER).extend(3.)),
         Serving,
         Ball,
         FollowEntity {

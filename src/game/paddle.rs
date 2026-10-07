@@ -33,7 +33,7 @@ fn spawn(mut commands: Commands) {
     commands.spawn((
         Sprite::from_color(PADDLE_COLOR, Vec2::ONE),
         Transform {
-            translation: PADDLE_START_POS.extend(0.0),
+            translation: PADDLE_START_POS.extend(1.0),
             scale: PADDLE_SIZE.extend(1.0),
             ..default()
         },

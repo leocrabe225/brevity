@@ -6,6 +6,7 @@ use crate::{
     decimal2::Decimal2,
     game::{
         FollowEntity, GamePhase, SetupSet, Velocity,
+        brick::BrickDestroyed,
         paddle::Paddle,
         progress::{SpeedBonus, SpeedUp},
     },
@@ -34,6 +35,7 @@ impl Plugin for HudPlugin {
                 bounce_size,
                 fade_out,
                 speedup_text,
+                destroyed_brick_text,
                 update_speed,
                 update_score,
             )
@@ -55,6 +57,7 @@ const SCOREBOARD_INTEGER_FONT_SIZE: FontSize = FontSize::Px(200.);
 const SCOREBOARD_DECIMAL_FONT_SIZE: FontSize = FontSize::Px(40.);
 const SPEED_FONT_SIZE: FontSize = FontSize::Px(20.);
 const SPEEDUP_FONT_SIZE: FontSize = FontSize::Px(20.);
+const DESTROYED_BRICK_FONT_SIZE: FontSize = FontSize::Px(15.);
 const SPACE_HINT_FONT_SIZE: FontSize = FontSize::Px(40.);
 const ARROW_HINT_FONT_SIZE: FontSize = FontSize::Px(60.);
 
@@ -316,21 +319,56 @@ fn update_speed(
 fn speedup_text(mut commands: Commands, mut speedups: MessageReader<SpeedUp>) {
     for speedup in speedups.read() {
         let direction = Vec2::from_angle(rand::random_range(0. ..PI));
-        commands.spawn((
-            Text2d::new(format!("x{}", speedup.gained)),
-            FadeOut(Timer::from_seconds(1.5, TimerMode::Once)),
-            TextFont {
-                font_size: SPEEDUP_FONT_SIZE,
-                ..default()
-            },
-            TextColor(speedup.reason.color()),
-            Transform {
-                translation: (SPEED_POS + Vec2::Y * 20.).extend(1.),
-                ..default()
-            },
-            Velocity(direction * 15.),
-        ));
+        spawn_ephemeral_text(
+            &mut commands,
+            direction,
+            SPEED_POS + Vec2::Y * 20.,
+            SPEEDUP_FONT_SIZE,
+            format!("x{}", speedup.gained),
+            speedup.reason.color(),
+        );
     }
+}
+
+fn destroyed_brick_text(
+    mut commands: Commands,
+    mut bricks_destroyed: MessageReader<BrickDestroyed>,
+) {
+    for brick in bricks_destroyed.read() {
+        let direction = Vec2::from_angle(rand::random_range((1.25 * PI)..(1.75 * PI)));
+        spawn_ephemeral_text(
+            &mut commands,
+            direction,
+            brick.position,
+            DESTROYED_BRICK_FONT_SIZE,
+            format!("+{}", brick.points),
+            brick.color,
+        );
+    }
+}
+
+fn spawn_ephemeral_text(
+    commands: &mut Commands,
+    direction: Vec2,
+    position: Vec2,
+    font_size: FontSize,
+    text: String,
+    color: Color,
+) {
+    commands.spawn((
+        Text2d::new(text),
+        FadeOut(Timer::from_seconds(1.5, TimerMode::Once)),
+        TextFont {
+            font_size,
+            ..default()
+        },
+        TextColor(color),
+        Transform {
+            translation: position.extend(2.),
+            ..default()
+        },
+        Velocity(direction * 15.),
+    ));
 }
 
 fn update_score(

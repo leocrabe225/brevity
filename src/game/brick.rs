@@ -2,11 +2,13 @@ use super::{Score, Solid, ball::Ball, progress::Progress};
 use crate::GameState;
 use crate::collision::{Collider, Collision, Shape};
 use crate::colors::BreakoutColors;
+use crate::decimal2::Decimal2;
 use crate::game::{GameSet, SetupSet};
 use bevy::prelude::*;
 
 impl Plugin for BrickPlugin {
     fn build(&self, app: &mut App) {
+        app.add_message::<BrickDestroyed>();
         app.add_systems(OnEnter(GameState::Game), spawn.in_set(SetupSet::Spawn));
         app.add_systems(FixedUpdate, hit_by_ball.in_set(GameSet::Resolution));
     }
@@ -62,6 +64,13 @@ impl BrickColor {
     }
 }
 
+#[derive(Message)]
+pub(super) struct BrickDestroyed {
+    pub(super) color: Color,
+    pub(super) points: Decimal2,
+    pub(super) position: Vec2,
+}
+
 fn spawn(mut commands: Commands, window: Single<&Window>) {
     let top = window.size().y / 2.;
     let left = -window.size().x / 2.;
@@ -100,6 +109,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
 fn hit_by_ball(
     mut commands: Commands,
     mut collisions: MessageReader<Collision>,
+    mut bricks_destroyed: MessageWriter<BrickDestroyed>,
     bricks: Query<&Brick>,
     balls: Query<(), With<Ball>>,
     mut score: ResMut<Score>,
@@ -110,10 +120,19 @@ fn hit_by_ball(
         if !bricks.contains(me.entity) || !balls.contains(other.entity) {
             continue;
         }
-        let Ok(brick) = bricks.get(collision.collisioner.entity) else {
+        let Ok(brick) = bricks.get(me.entity) else {
             continue;
         };
-        **score += progress.speed_multiplier() * brick.color.points();
+        let points = progress.speed_multiplier() * brick.color.points();
+
+        bricks_destroyed.write(BrickDestroyed {
+            color: brick.color.color(),
+            points,
+            position: me.position,
+        });
+
+        **score += points;
+
         progress.bricks_hit += 1;
         if brick.color == BrickColor::Orange {
             progress.orange_reached = true;
@@ -121,6 +140,7 @@ fn hit_by_ball(
         if brick.color == BrickColor::Red {
             progress.red_reached = true;
         }
+
         commands.entity(collision.collisioner.entity).despawn();
     }
 }
