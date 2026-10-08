@@ -1,6 +1,7 @@
 mod collision;
 mod colors;
 mod decimal2;
+mod ecs_ext;
 mod game;
 mod main_menu;
 use bevy::{

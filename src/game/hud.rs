@@ -4,6 +4,7 @@ use crate::{
     GameState,
     colors::BreakoutColors,
     decimal2::Decimal2,
+    ecs_ext::InsertNewExt,
     game::{
         FollowEntity, GamePhase, SetupSet, Velocity,
         brick::BrickDestroyed,
@@ -285,11 +286,8 @@ fn remove_on_press(
         if keyboard_input.any_just_pressed(remove.0.clone()) {
             commands
                 .entity(entity)
-                .insert(DisappearingHint { clock: 0. });
-            commands
-                .entity(entity)
-                .remove::<RemoveOnPress>()
-                .remove::<SizeBounce>();
+                .remove::<(RemoveOnPress, SizeBounce)>()
+                .insert_new(DisappearingHint { clock: 0. });
         }
     }
 }

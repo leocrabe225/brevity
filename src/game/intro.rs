@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     GameState,
+    ecs_ext::InsertNewExt,
     game::{
         IntroTimer, SetupSet,
         ball::Ball,
@@ -44,26 +45,32 @@ fn setup(
     for brick in bricks {
         commands
             .entity(brick)
-            .insert((Visibility::Hidden, RevealAt(BRICKS_AT)));
+            .insert(Visibility::Hidden)
+            .insert_new(RevealAt(BRICKS_AT));
     }
     commands
         .entity(paddle.entity())
-        .insert((Visibility::Hidden, RevealAt(PADDLE_AT)));
+        .insert(Visibility::Hidden)
+        .insert_new(RevealAt(PADDLE_AT));
     for ball in balls {
         commands
             .entity(ball)
-            .insert((Visibility::Hidden, RevealAt(BALL_AT)));
+            .insert(Visibility::Hidden)
+            .insert_new(RevealAt(BALL_AT));
     }
     commands
         .entity(score.entity())
-        .insert((Visibility::Hidden, RevealAt(SCORE_AT)));
+        .insert(Visibility::Hidden)
+        .insert_new(RevealAt(SCORE_AT));
     commands
         .entity(speed.entity())
-        .insert((Visibility::Hidden, RevealAt(SPEED_AT)));
+        .insert(Visibility::Hidden)
+        .insert_new(RevealAt(SPEED_AT));
     for hint in hints {
         commands
             .entity(hint)
-            .insert((Visibility::Hidden, RevealAt(HINTS_AT)));
+            .insert(Visibility::Hidden)
+            .insert_new(RevealAt(HINTS_AT));
     }
 }
 
