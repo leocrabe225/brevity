@@ -82,9 +82,9 @@ pub(super) struct SpeedText;
 pub(super) struct Hint;
 
 #[derive(Component)]
+#[require(FontSizeChanger)]
 struct SizeBounce {
     clock: f32,
-    font_size: FontSize,
 }
 
 #[derive(Component)]
@@ -93,7 +93,13 @@ struct RemoveOnPress(Vec<KeyCode>);
 #[derive(Component)]
 struct DisappearingHint {
     clock: f32,
-    start_size: FontSize,
+}
+
+#[derive(Component, Default)]
+#[require(Transform, TextFont)]
+struct FontSizeChanger {
+    multiplier: f32,
+    base_font_size: FontSize,
 }
 
 #[derive(Component)]
@@ -130,6 +136,28 @@ impl Progress {
             UnevenSampleCurve::new(Self::STOPS, Color::mix).expect("speed gradient needs 2+ stops");
 
         gradient.sample_clamped(self.speed_multiplier().to_f32())
+    }
+}
+
+impl FontSizeChanger {
+    fn new(multiplier: f32, expected_font_size: FontSize) -> Self {
+        Self {
+            multiplier,
+            base_font_size: expected_font_size,
+        }
+    }
+
+    fn get_font_size(&self) -> FontSize {
+        self.base_font_size * self.multiplier
+    }
+
+    fn get_scale(&self) -> Vec3 {
+        Vec3::new(1. / self.multiplier, 1. / self.multiplier, 1.)
+    }
+
+    fn set_scale(&self, transform: &mut Transform, scale: f32) {
+        transform.scale.x = scale / self.multiplier;
+        transform.scale.y = scale / self.multiplier;
     }
 }
 
@@ -227,22 +255,22 @@ fn spawn_hint(
     remove_keys: Vec<KeyCode>,
     extra: impl Bundle,
 ) {
+    let font_size_changer = FontSizeChanger::new(2., font_size);
     commands.spawn((
         Hint,
         Text2d::new(text),
         TextFont {
-            font_size,
+            font_size: font_size_changer.get_font_size(),
             ..default()
         },
         TextColor(Color::WHITE),
         Transform {
             translation: pos.extend(-1.),
+            scale: font_size_changer.get_scale(),
             ..default()
         },
-        SizeBounce {
-            clock: 0.,
-            font_size,
-        },
+        SizeBounce { clock: 0. },
+        font_size_changer,
         RemoveOnPress(remove_keys),
         extra,
     ));
@@ -250,15 +278,14 @@ fn spawn_hint(
 
 fn remove_on_press(
     mut commands: Commands,
-    query: Query<(&RemoveOnPress, &TextFont, Entity)>,
+    query: Query<(&RemoveOnPress, Entity)>,
     keyboard_input: Res<ButtonInput<KeyCode>>,
 ) {
-    for (remove, font, entity) in query {
+    for (remove, entity) in query {
         if keyboard_input.any_just_pressed(remove.0.clone()) {
-            commands.entity(entity).insert(DisappearingHint {
-                clock: 0.,
-                start_size: font.font_size,
-            });
+            commands
+                .entity(entity)
+                .insert(DisappearingHint { clock: 0. });
             commands
                 .entity(entity)
                 .remove::<RemoveOnPress>()
@@ -269,26 +296,34 @@ fn remove_on_press(
 
 fn disappear_hint(
     mut commands: Commands,
-    query: Query<(&mut DisappearingHint, &mut TextFont, Entity)>,
+    query: Query<(
+        &FontSizeChanger,
+        &mut Transform,
+        &mut DisappearingHint,
+        Entity,
+    )>,
     time: Res<Time>,
 ) {
     const LENGTH: f32 = 0.3;
-    for (mut disappearing, mut font, entity) in query {
+    for (font_size_changer, mut transform, mut disappearing, entity) in query {
         disappearing.clock += time.delta_secs();
         if disappearing.clock >= LENGTH {
             commands.entity(entity).despawn();
             continue;
         }
         let progress = EaseFunction::BackIn.sample_clamped(disappearing.clock * (1. / LENGTH));
-        font.font_size = disappearing.start_size * (1. - progress);
+        font_size_changer.set_scale(&mut transform, 1. - progress);
     }
 }
 
-fn bounce_size(time: Res<Time>, mut query: Query<(&mut TextFont, &mut SizeBounce)>) {
-    for (mut font, mut size_bounce) in &mut query {
+fn bounce_size(
+    time: Res<Time>,
+    mut query: Query<(&FontSizeChanger, &mut Transform, &mut SizeBounce)>,
+) {
+    for (font_size_changer, mut transform, mut size_bounce) in &mut query {
         size_bounce.clock += time.delta_secs();
         let progress = 1. + 0.15 * (PI * size_bounce.clock / 1.5).sin();
-        font.font_size = size_bounce.font_size * progress;
+        font_size_changer.set_scale(&mut transform, progress);
     }
 }
 

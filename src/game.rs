@@ -123,7 +123,7 @@ fn advance_intro(
     time: Res<Time>,
     mut next: ResMut<NextState<GamePhase>>,
 ) {
-    if timer.0.tick(time.delta()).is_finished() {
+    if timer.0.tick(time.delta()).just_finished() {
         next.set(GamePhase::Playing);
     }
 }
