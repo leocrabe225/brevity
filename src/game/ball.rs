@@ -1,3 +1,5 @@
+mod death;
+
 use super::{
     Solid, Velocity,
     arena::{Backboard, OutOfBounds},
@@ -6,14 +8,16 @@ use super::{
 };
 use crate::{
     collision::{Collider, Collision, Shape},
-    game::{BALL_LIVES_COLORS, FollowEntity, GameSet, START_LIVES},
+    game::{BALL_LIVES_COLORS, FollowEntity, GameSet, START_LIVES, ball::death::BeingLasered},
 };
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_3;
 
 impl Plugin for BallPlugin {
     fn build(&self, app: &mut App) {
+        app.add_plugins(death::BallDeathPlugin);
         app.add_observer(serve_on_new_paddle);
+        app.add_message::<BallDied>();
         app.add_systems(
             FixedUpdate,
             (
@@ -26,6 +30,7 @@ impl Plugin for BallPlugin {
 }
 
 const BALL_DIAMETER: f32 = 10.;
+const BALL_RADIUS: f32 = BALL_DIAMETER / 2.;
 const INITIAL_BALL_DIRECTION: Vec2 = Vec2::new(0.5, 0.5);
 const BALL_STARTING_SPEED: f32 = 400.;
 const MAX_PADDLE_BOUNCE_ANGLE: f32 = FRAC_PI_3;
@@ -39,7 +44,7 @@ pub(super) struct Ball;
 struct Serving;
 
 #[derive(Message)]
-pub(super) struct BallLost;
+pub(super) struct BallDied;
 
 fn serve_on_new_paddle(
     add: On<Add, Paddle>,
@@ -65,7 +70,11 @@ pub(super) fn spawn_serving_ball(
 ) {
     commands.spawn((
         Mesh2d(meshes.add(Circle::default())),
-        MeshMaterial2d(materials.add(color)),
+        MeshMaterial2d(materials.add(ColorMaterial {
+            color,
+            alpha_mode: bevy::sprite_render::AlphaMode2d::Blend,
+            ..default()
+        })),
         Transform::from_translation(Vec3::ZERO).with_scale(Vec2::splat(BALL_DIAMETER).extend(3.)),
         Serving,
         Ball,
@@ -94,7 +103,7 @@ fn serve(
                 Solid,
                 Velocity(INITIAL_BALL_DIRECTION.normalize() * current_speed(&progress)),
                 Collider {
-                    shape: Shape::Circle(Circle::new(BALL_DIAMETER / 2.)),
+                    shape: Shape::Circle(Circle::new(BALL_RADIUS)),
                 },
             ));
     }
@@ -140,7 +149,6 @@ fn bounce(
 
 fn out_of_bounds(
     mut commands: Commands,
-    mut ball_lost: MessageWriter<BallLost>,
     mut collisions: MessageReader<Collision>,
     balls: Query<(), With<Ball>>,
     killzone: Query<(), With<OutOfBounds>>,
@@ -151,8 +159,10 @@ fn out_of_bounds(
             continue;
         }
 
-        commands.entity(me.entity).despawn();
-        ball_lost.write(BallLost);
+        commands
+            .entity(me.entity)
+            .remove::<(Ball, Solid)>()
+            .insert(BeingLasered::new());
     }
 }
 

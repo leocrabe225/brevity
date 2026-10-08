@@ -12,7 +12,7 @@ use crate::{
     colors::BreakoutColors,
     decimal2::Decimal2,
 };
-use ball::BallLost;
+use ball::BallDied;
 use bevy::prelude::*;
 
 #[derive(SubStates, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -30,6 +30,7 @@ enum GameSet {
     Detection,
     Resolution,
     Rules,
+    Consequences,
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -41,7 +42,6 @@ enum SetupSet {
 
 pub(super) fn plugin(app: &mut App) {
     app.add_sub_state::<GamePhase>()
-        .add_message::<BallLost>()
         .add_observer(snap_follower)
         .configure_sets(
             OnEnter(GameState::Game),
@@ -55,6 +55,7 @@ pub(super) fn plugin(app: &mut App) {
                 GameSet::Detection,
                 GameSet::Resolution,
                 GameSet::Rules,
+                GameSet::Consequences,
             )
                 .chain()
                 .run_if(in_state(GamePhase::Playing)),
@@ -78,9 +79,9 @@ pub(super) fn plugin(app: &mut App) {
         .add_systems(
             FixedUpdate,
             (
-                apply_velocity.in_set(GameSet::Movement),
-                handle_ball_lost.in_set(GameSet::Rules),
+                (apply_velocity, apply_angular_velocity).in_set(GameSet::Movement),
                 follow.after(GameSet::Resolution).before(GameSet::Rules),
+                handle_ball_died.in_set(GameSet::Consequences),
             ),
         );
 }
@@ -106,6 +107,9 @@ struct Static;
 #[derive(Component, Deref, DerefMut)]
 struct Velocity(Vec2);
 
+#[derive(Component, Deref, DerefMut)]
+struct AngularVelocity(f32);
+
 #[derive(Resource, Deref, DerefMut)]
 struct Score(Decimal2);
 
@@ -128,10 +132,16 @@ fn advance_intro(
     }
 }
 
-fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, fixed_time: Res<Time>) {
+fn apply_velocity(mut query: Query<(&mut Transform, &Velocity)>, time: Res<Time>) {
     for (mut transform, velocity) in &mut query {
-        transform.translation.x += velocity.x * fixed_time.delta_secs();
-        transform.translation.y += velocity.y * fixed_time.delta_secs();
+        transform.translation.x += velocity.x * time.delta_secs();
+        transform.translation.y += velocity.y * time.delta_secs();
+    }
+}
+
+fn apply_angular_velocity(mut query: Query<(&mut Transform, &AngularVelocity)>, time: Res<Time>) {
+    for (mut transform, angular_velocity) in &mut query {
+        transform.rotation *= Quat::from_rotation_z(**angular_velocity * time.delta_secs());
     }
 }
 
@@ -174,15 +184,15 @@ fn apply_follow(follower: &mut Transform, offset: Vec2, target: Vec2) {
     follower.translation = (target + offset).extend(follower.translation.z);
 }
 
-fn handle_ball_lost(
+fn handle_ball_died(
     mut commands: Commands,
-    mut ball_lost: MessageReader<BallLost>,
+    mut events: MessageReader<BallDied>,
     mut lives: ResMut<Lives>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     paddle: Single<Entity, With<paddle::Paddle>>,
 ) {
-    for _ in ball_lost.read() {
+    for _ in events.read() {
         **lives -= 1;
 
         if **lives == 0 {
