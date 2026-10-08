@@ -76,6 +76,10 @@ pub(super) fn spawn_serving_ball(
     ));
 }
 
+pub(super) fn get_ball_mesh() -> Scene {
+    bsn! {}
+}
+
 fn serve(
     mut commands: Commands,
     progress: Res<Progress>,
