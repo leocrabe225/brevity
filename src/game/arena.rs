@@ -2,13 +2,12 @@ use super::{Solid, Static};
 use crate::{
     GameState,
     collision::{Collider, Shape},
-    game::SetupSet,
 };
 use bevy::prelude::*;
 
 impl Plugin for ArenaPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Game), spawn.in_set(SetupSet::Spawn));
+        app.add_systems(OnEnter(GameState::Game), spawn);
     }
 }
 

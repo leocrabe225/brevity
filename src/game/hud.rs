@@ -6,7 +6,7 @@ use crate::{
     decimal2::Decimal2,
     ecs_ext::InsertNewExt,
     game::{
-        FollowEntity, GamePhase, SetupSet, Velocity,
+        FollowEntity, GamePhase, Velocity,
         brick::BrickDestroyed,
         paddle::Paddle,
         progress::{SpeedBonus, SpeedUp},
@@ -24,10 +24,7 @@ use bevy::{
 impl Plugin for HudPlugin {
     fn build(&self, app: &mut App) {
         app.add_observer(spawn_hints);
-        app.add_systems(
-            OnEnter(GameState::Game),
-            (spawn_score, spawn_speed).in_set(SetupSet::Spawn),
-        );
+        app.add_systems(OnEnter(GameState::Game), (spawn_score, spawn_speed));
         app.add_systems(
             Update,
             (

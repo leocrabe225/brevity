@@ -3,13 +3,13 @@ use crate::GameState;
 use crate::collision::{Collider, Collision, Shape};
 use crate::colors::BreakoutColors;
 use crate::decimal2::Decimal2;
-use crate::game::{GameSet, SetupSet};
+use crate::game::GameSet;
 use bevy::prelude::*;
 
 impl Plugin for BrickPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<BrickDestroyed>();
-        app.add_systems(OnEnter(GameState::Game), spawn.in_set(SetupSet::Spawn));
+        app.add_systems(OnEnter(GameState::Game), spawn);
         app.add_systems(FixedUpdate, hit_by_ball.in_set(GameSet::Resolution));
     }
 }

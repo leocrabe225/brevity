@@ -32,21 +32,13 @@ enum GameSet {
     Consequences,
 }
 
-#[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
-enum SetupSet {
-    Reset,
-    Spawn,
-    Stage,
-}
-
 pub(super) fn plugin(app: &mut App) {
     app.add_sub_state::<GamePhase>()
+        .init_resource::<IntroTimer>()
+        .init_per_game::<Score>()
+        .init_per_game::<Lives>()
         .add_observer(snap_follower)
         .add_observer(serve_on_new_paddle)
-        .configure_sets(
-            OnEnter(GameState::Game),
-            (SetupSet::Reset, SetupSet::Spawn, SetupSet::Stage).chain(),
-        )
         .configure_sets(
             FixedUpdate,
             (
@@ -61,10 +53,6 @@ pub(super) fn plugin(app: &mut App) {
                 .run_if(in_state(GamePhase::Playing)),
         )
         .configure_sets(FixedUpdate, CollisionSystems.in_set(GameSet::Detection))
-        .add_systems(
-            OnEnter(GameState::Game),
-            setup_resources.in_set(SetupSet::Reset),
-        )
         .add_systems(Update, advance_intro.run_if(in_state(GamePhase::Intro)))
         .add_plugins((
             intro::IntroPlugin,
@@ -86,14 +74,7 @@ pub(super) fn plugin(app: &mut App) {
         );
 }
 
-fn setup_resources(mut commands: Commands) {
-    commands.init_resource::<IntroTimer>();
-    commands.insert_resource(Score(Decimal2::ZERO));
-    commands.insert_resource(Lives(START_LIVES));
-}
-
 const BALL_LIVES_COLORS: [Color; 3] = [Color::BRICK_RED, Color::BRICK_ORANGE, Color::WHITE];
-const START_LIVES: usize = 3;
 
 #[derive(Resource, Default, Deref, DerefMut)]
 struct IntroTimer(Timer);
@@ -112,14 +93,39 @@ struct AngularVelocity(f32);
 
 #[derive(Resource, Deref, DerefMut)]
 struct Score(Decimal2);
+impl PerGame for Score {
+    const START: Self = Score(Decimal2::ZERO);
+}
 
 #[derive(Resource, Deref, DerefMut, Copy, Clone)]
 struct Lives(usize);
+impl PerGame for Lives {
+    const START: Self = Lives(3);
+}
 
 #[derive(Component, Clone, Copy, FromTemplate)]
 struct FollowEntity {
     entity: Entity,
     offset: Vec2,
+}
+
+trait PerGame: Resource {
+    const START: Self;
+}
+
+fn reset<T: PerGame>(mut commands: Commands) {
+    commands.insert_resource(T::START);
+}
+
+trait PerGameExt {
+    fn init_per_game<T: PerGame>(&mut self) -> &mut Self;
+}
+
+impl PerGameExt for App {
+    fn init_per_game<T: PerGame>(&mut self) -> &mut Self {
+        self.insert_resource(T::START)
+            .add_systems(OnExit(GameState::Game), reset::<T>)
+    }
 }
 
 fn advance_intro(

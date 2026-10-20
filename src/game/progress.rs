@@ -2,12 +2,15 @@ use std::mem::discriminant;
 
 use bevy::prelude::*;
 
-use crate::{decimal2::Decimal2, game::GameSet};
+use crate::{
+    decimal2::Decimal2,
+    game::{GameSet, PerGame, PerGameExt},
+};
 
 impl Plugin for ProgressPlugin {
     fn build(&self, app: &mut App) {
         app.add_message::<SpeedUp>();
-        app.insert_resource(Progress { ..default() });
+        app.init_per_game::<Progress>();
         app.add_systems(
             FixedUpdate,
             detect_speedups
@@ -39,12 +42,20 @@ pub(super) enum SpeedBonus {
     BackboardTouched(u32),
 }
 
-#[derive(Resource, Default, Copy, Clone)]
+#[derive(Resource, Copy, Clone)]
 pub(super) struct Progress {
     pub(super) bricks_hit: u32,
     pub(super) orange_reached: bool,
     pub(super) red_reached: bool,
     pub(super) backboard_touches: u32,
+}
+impl PerGame for Progress {
+    const START: Self = Progress {
+        bricks_hit: 0,
+        orange_reached: false,
+        red_reached: false,
+        backboard_touches: 0,
+    };
 }
 
 impl SpeedBonus {

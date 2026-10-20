@@ -1,10 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
-    GameState,
     ecs_ext::InsertNewExt,
     game::{
-        IntroTimer, SetupSet,
+        GamePhase, IntroTimer,
         ball::Ball,
         brick::Brick,
         hud::{Hint, ScoreIntegerText, SpeedText},
@@ -15,7 +14,7 @@ use crate::{
 impl Plugin for IntroPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(IntroTimer(Timer::from_seconds(INTRO_END, TimerMode::Once)));
-        app.add_systems(OnEnter(GameState::Game), setup.in_set(SetupSet::Stage));
+        app.add_systems(OnEnter(GamePhase::Intro), setup);
         app.add_systems(Update, reveal);
     }
 }

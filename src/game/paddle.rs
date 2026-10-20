@@ -2,13 +2,13 @@ use super::{Solid, Static, Velocity};
 use crate::{
     GameState,
     collision::{Collider, Collision, Shape},
-    game::{GameSet, SetupSet},
+    game::GameSet,
 };
 use bevy::prelude::*;
 
 impl Plugin for PaddlePlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::Game), spawn.in_set(SetupSet::Spawn));
+        app.add_systems(OnEnter(GameState::Game), spawn);
         app.add_systems(
             FixedUpdate,
             (
