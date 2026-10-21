@@ -2,12 +2,24 @@ use super::GameState;
 use crate::colors::BreakoutColors;
 use bevy::prelude::*;
 
+#[derive(SubStates, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[source(GameState = GameState::MainMenu)]
+enum MenuPhase {
+    #[default]
+    Waiting,
+    Outro,
+}
+
 impl Plugin for MainMenuPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::MainMenu), setup)
+        app.add_sub_state::<MenuPhase>()
+            .add_systems(OnEnter(GameState::MainMenu), setup)
             .add_systems(
                 Update,
-                (start_game, move_title_animation).run_if(in_state(GameState::MainMenu)),
+                (
+                    start_game.run_if(in_state(MenuPhase::Waiting)),
+                    move_title_animation.run_if(in_state(MenuPhase::Outro)),
+                ),
             );
     }
 }
@@ -16,6 +28,7 @@ fn setup(mut commands: Commands) {
     commands.spawn_scene(bsn![
         Transform::from_translation(TITLE_START_POSITION)
         Title
+        DespawnOnEnter::<GameState>(GameState::MainMenu)
         colored_text(
             "BREAKOUT",
             TITLE_FONT_SIZE,
@@ -98,10 +111,10 @@ fn move_title_animation(
 fn start_game(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
-    mut last: Local<Option<bool>>,
+    mut next: ResMut<NextState<MenuPhase>>,
 ) {
-    if !last.is_some() && keys.just_pressed(KeyCode::Enter) {
+    if keys.just_pressed(KeyCode::Enter) {
         commands.spawn(GameStarting(Timer::from_seconds(2., TimerMode::Once)));
-        *last = Some(true);
+        next.set(MenuPhase::Outro);
     }
 }

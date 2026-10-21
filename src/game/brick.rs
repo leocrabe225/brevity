@@ -3,7 +3,7 @@ use crate::GameState;
 use crate::collision::{Collider, Collision, Shape};
 use crate::colors::BreakoutColors;
 use crate::decimal2::Decimal2;
-use crate::game::GameSet;
+use crate::game::{GameSet, OnBoard};
 use bevy::prelude::*;
 
 impl Plugin for BrickPlugin {
@@ -39,7 +39,7 @@ enum BrickColor {
 }
 
 #[derive(Component)]
-#[require(Solid)]
+#[require(Solid, OnBoard)]
 pub(super) struct Brick {
     color: BrickColor,
 }

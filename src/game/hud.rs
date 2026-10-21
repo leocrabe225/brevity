@@ -6,7 +6,7 @@ use crate::{
     decimal2::Decimal2,
     ecs_ext::InsertNewExt,
     game::{
-        FollowEntity, GamePhase, Velocity,
+        FollowEntity, GamePhase, OnBoard, Velocity,
         brick::BrickDestroyed,
         paddle::Paddle,
         progress::{SpeedBonus, SpeedUp},
@@ -68,15 +68,19 @@ const RIGHT_ARROW_HINT_X: f32 = 120.;
 pub(super) struct HudPlugin;
 
 #[derive(Component)]
+#[require(OnBoard)]
 pub(super) struct ScoreIntegerText;
 
 #[derive(Component)]
+#[require(OnBoard)]
 pub(super) struct ScoreDecimalsText;
 
 #[derive(Component)]
+#[require(OnBoard)]
 pub(super) struct SpeedText;
 
 #[derive(Component)]
+#[require(OnBoard)]
 pub(super) struct Hint;
 
 #[derive(Component)]
@@ -398,6 +402,7 @@ fn spawn_ephemeral_text(
             ..default()
         },
         Velocity(direction * 15.),
+        OnBoard,
     ));
 }
 

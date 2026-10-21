@@ -30,7 +30,6 @@ enum GameState {
     #[default]
     MainMenu,
     Game,
-    GameOver,
 }
 
 fn spawn_camera(mut commands: Commands) {

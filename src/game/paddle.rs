@@ -2,7 +2,7 @@ use super::{Solid, Static, Velocity};
 use crate::{
     GameState,
     collision::{Collider, Collision, Shape},
-    game::GameSet,
+    game::{GameSet, OnBoard},
 };
 use bevy::prelude::*;
 
@@ -26,7 +26,7 @@ const PADDLE_START_POS: Vec2 = Vec2::new(0., -250.);
 pub(super) struct PaddlePlugin;
 
 #[derive(Component)]
-#[require(Solid)]
+#[require(Solid, OnBoard)]
 pub(super) struct Paddle;
 
 fn spawn(mut commands: Commands) {

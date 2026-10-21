@@ -34,6 +34,7 @@ const INTRO_END: f32 = 4.;
 
 fn setup(
     mut commands: Commands,
+    mut timer: ResMut<IntroTimer>,
     bricks: Query<Entity, With<Brick>>,
     paddle: Single<Entity, With<Paddle>>,
     balls: Query<Entity, With<Ball>>,
@@ -41,6 +42,7 @@ fn setup(
     speed: Single<Entity, With<SpeedText>>,
     hints: Query<Entity, With<Hint>>,
 ) {
+    timer.reset();
     for brick in bricks {
         commands
             .entity(brick)
