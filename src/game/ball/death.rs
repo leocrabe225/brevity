@@ -2,7 +2,7 @@ use std::f32::consts::{FRAC_PI_2, PI};
 
 use bevy::prelude::*;
 
-use crate::game::{AngularVelocity, GameSet, Velocity, ball::ball_visuals};
+use crate::game::{AngularVelocity, GameSet, OnBoard, Velocity, ball::ball_visuals};
 
 use super::{BALL_DIAMETER, BALL_RADIUS, BallDied};
 
@@ -55,6 +55,7 @@ impl BeingLasered {
 }
 
 #[derive(Component, Clone, FromTemplate)]
+#[require(OnBoard)]
 struct Laser {
     timer: Timer,
     target: Entity,
@@ -68,6 +69,7 @@ fn handle_ball_died(mut commands: Commands, mut events: MessageReader<BallDied>)
                 ball_visuals(ball_died.color)
                 Transform::from_translation(translation)
                 Velocity({ball_died.velocity})
+                OnBoard
                 BeingLasered::new()
             })
             .id();
@@ -240,6 +242,7 @@ fn spawn_ball_fragment(
             start_velocity: velocity,
             start_angular_velocity: angular_velocity,
         },
+        OnBoard,
     ));
 }
 

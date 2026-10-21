@@ -9,7 +9,7 @@ use super::{
 use crate::{
     collision::{Collider, Collision, Shape},
     ecs_ext::InsertNewExt,
-    game::{FollowEntity, GameSet},
+    game::{FollowEntity, GameSet, OnBoard},
 };
 use bevy::prelude::*;
 use std::f32::consts::FRAC_PI_3;
@@ -39,6 +39,7 @@ const BALL_Z_ORDER: f32 = 3.;
 pub(super) struct BallPlugin;
 
 #[derive(Component, Clone, Copy, Default)]
+#[require(OnBoard)]
 pub(super) struct Ball;
 
 #[derive(Component, Clone, Copy, Default)]

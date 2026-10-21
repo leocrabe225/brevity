@@ -2,6 +2,7 @@ use super::{Solid, Static};
 use crate::{
     GameState,
     collision::{Collider, Shape},
+    game::OnBoard,
 };
 use bevy::prelude::*;
 
@@ -14,9 +15,11 @@ impl Plugin for ArenaPlugin {
 pub(super) struct ArenaPlugin;
 
 #[derive(Component)]
+#[require(OnBoard)]
 pub(super) struct Backboard;
 
 #[derive(Component)]
+#[require(OnBoard)]
 pub(super) struct OutOfBounds;
 
 fn spawn(mut commands: Commands, window: Single<&Window>) {
@@ -47,6 +50,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         Collider {
             shape: Shape::Rectangle(Rectangle::new(window.size().x, 20.0)),
         },
+        OnBoard,
     ));
     commands.spawn((
         Transform {
@@ -68,6 +72,7 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         Collider {
             shape: Shape::Rectangle(Rectangle::new(20., window.size().x)),
         },
+        OnBoard,
     ));
     commands.spawn((
         Transform {
@@ -79,5 +84,6 @@ fn spawn(mut commands: Commands, window: Single<&Window>) {
         Collider {
             shape: Shape::Rectangle(Rectangle::new(20., window.size().x)),
         },
+        OnBoard,
     ));
 }

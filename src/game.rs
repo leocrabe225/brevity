@@ -20,6 +20,7 @@ enum GamePhase {
     #[default]
     Intro,
     Playing,
+    GameOver,
 }
 
 #[derive(SystemSet, Debug, Clone, PartialEq, Eq, Hash)]
@@ -71,10 +72,18 @@ pub(super) fn plugin(app: &mut App) {
                 follow.after(GameSet::Resolution).before(GameSet::Rules),
                 handle_ball_died.in_set(GameSet::Consequences),
             ),
+        )
+        .add_systems(
+            FixedPostUpdate,
+            game_over.run_if(in_state(GamePhase::GameOver)),
         );
 }
 
 const BALL_LIVES_COLORS: [Color; 3] = [Color::BRICK_RED, Color::BRICK_ORANGE, Color::WHITE];
+
+#[derive(Component, Default, Clone)]
+#[require(DespawnOnExit<GamePhase> = DespawnOnExit(GamePhase::GameOver))]
+struct OnBoard;
 
 #[derive(Resource, Default, Deref, DerefMut)]
 struct IntroTimer(Timer);
@@ -195,16 +204,22 @@ fn handle_ball_died(
     mut events: MessageReader<ball::BallDied>,
     mut lives: ResMut<Lives>,
     paddle: Single<Entity, With<paddle::Paddle>>,
+    mut next: ResMut<NextState<GamePhase>>,
 ) {
     for _ in events.read() {
         **lives -= 1;
 
         if **lives == 0 {
-            todo!("Game over not implemented");
+            next.set(GamePhase::GameOver);
+            return;
         }
 
         serve_next_ball(paddle.entity(), &mut commands, *lives);
     }
+}
+
+fn game_over(mut next: ResMut<NextState<GameState>>) {
+    next.set(GameState::MainMenu);
 }
 
 fn serve_on_new_paddle(add: On<Add, paddle::Paddle>, mut commands: Commands, lives: Res<Lives>) {
