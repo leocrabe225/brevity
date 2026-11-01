@@ -21,7 +21,7 @@ fn main() {
         .init_state::<GameState>()
         .add_systems(Startup, spawn_camera)
         .add_systems(Update, quit)
-        .add_plugins((main_menu::plugin, game::plugin))
+        .add_plugins((main_menu::MainMenuPlugin, game::GamePlugin))
         .run();
 }
 

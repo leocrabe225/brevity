@@ -2,12 +2,14 @@ use super::GameState;
 use crate::colors::BreakoutColors;
 use bevy::prelude::*;
 
-pub(super) fn plugin(app: &mut App) {
-    app.add_systems(OnEnter(GameState::MainMenu), setup)
-        .add_systems(
-            Update,
-            (start_game, move_title_animation).run_if(in_state(GameState::MainMenu)),
-        );
+impl Plugin for MainMenuPlugin {
+    fn build(&self, app: &mut App) {
+        app.add_systems(OnEnter(GameState::MainMenu), setup)
+            .add_systems(
+                Update,
+                (start_game, move_title_animation).run_if(in_state(GameState::MainMenu)),
+            );
+    }
 }
 
 fn setup(mut commands: Commands) {
@@ -32,6 +34,8 @@ const TITLE_FONT_SIZE: FontSize = FontSize::Px(67.);
 
 const TITLE_START_POSITION: Vec3 = Vec3::new(0., 300., -1.);
 const TITLE_END_POSITION: Vec3 = Vec3::new(0., 170., -1.);
+
+pub(super) struct MainMenuPlugin;
 
 #[derive(Component, Clone, Default)]
 struct Title;

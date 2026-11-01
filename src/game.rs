@@ -32,49 +32,53 @@ enum GameSet {
     Consequences,
 }
 
-pub(super) fn plugin(app: &mut App) {
-    app.add_sub_state::<GamePhase>()
-        .init_resource::<IntroTimer>()
-        .init_per_game::<Score>()
-        .init_per_game::<Lives>()
-        .add_observer(snap_follower)
-        .add_observer(serve_on_new_paddle)
-        .configure_sets(
-            FixedUpdate,
-            (
-                GameSet::Input,
-                GameSet::Movement,
-                GameSet::Detection,
-                GameSet::Resolution,
-                GameSet::Rules,
-                GameSet::Consequences,
+impl Plugin for GamePlugin {
+    fn build(&self, app: &mut App) {
+        app.add_sub_state::<GamePhase>()
+            .init_resource::<IntroTimer>()
+            .init_per_game::<Score>()
+            .init_per_game::<Lives>()
+            .add_observer(snap_follower)
+            .add_observer(serve_on_new_paddle)
+            .configure_sets(
+                FixedUpdate,
+                (
+                    GameSet::Input,
+                    GameSet::Movement,
+                    GameSet::Detection,
+                    GameSet::Resolution,
+                    GameSet::Rules,
+                    GameSet::Consequences,
+                )
+                    .chain()
+                    .run_if(in_state(GamePhase::Playing)),
             )
-                .chain()
-                .run_if(in_state(GamePhase::Playing)),
-        )
-        .configure_sets(FixedUpdate, CollisionSystems.in_set(GameSet::Detection))
-        .add_systems(Update, advance_intro.run_if(in_state(GamePhase::Intro)))
-        .add_plugins((
-            intro::IntroPlugin,
-            arena::ArenaPlugin,
-            ball::BallPlugin,
-            brick::BrickPlugin,
-            hud::HudPlugin,
-            paddle::PaddlePlugin,
-            collision::CollisionPlugin,
-            progress::ProgressPlugin,
-        ))
-        .add_systems(
-            FixedUpdate,
-            (
-                (apply_velocity, apply_angular_velocity).in_set(GameSet::Movement),
-                follow.after(GameSet::Resolution).before(GameSet::Rules),
-                handle_ball_died.in_set(GameSet::Consequences),
-            ),
-        );
+            .configure_sets(FixedUpdate, CollisionSystems.in_set(GameSet::Detection))
+            .add_systems(Update, advance_intro.run_if(in_state(GamePhase::Intro)))
+            .add_plugins((
+                intro::IntroPlugin,
+                arena::ArenaPlugin,
+                ball::BallPlugin,
+                brick::BrickPlugin,
+                hud::HudPlugin,
+                paddle::PaddlePlugin,
+                collision::CollisionPlugin,
+                progress::ProgressPlugin,
+            ))
+            .add_systems(
+                FixedUpdate,
+                (
+                    (apply_velocity, apply_angular_velocity).in_set(GameSet::Movement),
+                    follow.after(GameSet::Resolution).before(GameSet::Rules),
+                    handle_ball_died.in_set(GameSet::Consequences),
+                ),
+            );
+    }
 }
 
 const BALL_LIVES_COLORS: [Color; 3] = [Color::BRICK_RED, Color::BRICK_ORANGE, Color::WHITE];
+
+pub(super) struct GamePlugin;
 
 #[derive(Resource, Default, Deref, DerefMut)]
 struct IntroTimer(Timer);
