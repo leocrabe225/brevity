@@ -1,5 +1,5 @@
 use super::GameState;
-use crate::colors::BreakoutColors;
+use crate::{colors::BreakoutColors, sequence::Sequence};
 use bevy::prelude::*;
 
 #[derive(SubStates, Default, Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -8,6 +8,21 @@ enum MenuPhase {
     #[default]
     Waiting,
     Outro,
+}
+
+impl Sequence for MenuPhase {
+    fn next(self) -> Option<Self> {
+        match self {
+            MenuPhase::Waiting => Some(MenuPhase::Outro),
+            MenuPhase::Outro => None,
+        }
+    }
+
+    fn finish(world: &mut World) {
+        todo!(
+            "Implement finish and find where the fuck to place Hold (Title means remove_component, not a big fan)",
+        )
+    }
 }
 
 impl Plugin for MainMenuPlugin {

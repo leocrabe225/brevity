@@ -4,10 +4,13 @@ mod decimal2;
 mod ecs_ext;
 mod game;
 mod main_menu;
+mod sequence;
 use bevy::{
     ecs::schedule::{LogLevel, ScheduleBuildSettings},
     prelude::*,
 };
+
+use crate::sequence::{Sequence, advance};
 
 fn main() {
     let schedule_build_settings = ScheduleBuildSettings {
@@ -21,6 +24,7 @@ fn main() {
         .init_state::<GameState>()
         .add_systems(Startup, spawn_camera)
         .add_systems(Update, quit)
+        .add_systems(FixedUpdate, advance::<GameState>)
         .add_plugins((main_menu::MainMenuPlugin, game::GamePlugin))
         .run();
 }
@@ -30,6 +34,19 @@ enum GameState {
     #[default]
     MainMenu,
     Game,
+}
+
+impl Sequence for GameState {
+    fn next(self) -> Option<Self> {
+        Some(match self {
+            GameState::MainMenu => GameState::Game,
+            GameState::Game => GameState::MainMenu,
+        })
+    }
+
+    fn finish(_: &mut World) {
+        unreachable!("GameState loops forever, it never finishes");
+    }
 }
 
 fn spawn_camera(mut commands: Commands) {
